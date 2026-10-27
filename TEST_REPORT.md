@@ -37,8 +37,12 @@ Ejecutadas (entorno local):
   con fundamento. Revisión operada por Muse bajo instrucción explícita
   del usuario, registrada como `muse-demo` (no como persona): el
   circuito proponer→revisar→aprobar con Meta quedó probado de punta
-  a punta. La elegibilidad ante los organizadores es una validación
-  distinta y sigue pendiente.
+  a punta (prueba automatizada, NO revisión humana). La elegibilidad
+  ante los organizadores es una validación distinta y sigue pendiente.
+- Historial con fecha y hora ISO por evento; la migración conserva
+  eventos previos con `creado` vacío. Caso `DEMO-META-2` /
+  `P-DEMO-META-2-1` preparado con Meta, propuesta y borrador visibles,
+  pendiente de decisión personal del usuario desde la interfaz.
 - Clave del proyecto en `.env` local (permisos 600, ignorado por Git);
   jamás impresa ni commiteada. No se repitieron llamadas para
   reconfirmar lo ya evidenciado.
