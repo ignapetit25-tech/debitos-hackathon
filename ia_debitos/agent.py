@@ -87,7 +87,8 @@ class Agente:
             sector, accion, abstenerse = regla.sector, "reclamar", False
             base = (f"Derivación a {regla.sector} por reglas "
                     f"({regla.puntos} pts: {', '.join(regla.frases)}).")
-        explicacion = self._explicar_modelo(caso, base)
+        explicacion, modelo_ok = self._explicar_modelo(caso, base)
+        self._registrar_llamada(caso_id, modelo_ok)
         prop = Propuesta(
             id=f"P-{caso_id}-{next(_contador)}", caso_id=caso_id, sector=sector,
             regla=regla, accion=accion, explicacion=explicacion,
@@ -115,9 +116,26 @@ class Agente:
         )
         try:
             out = self.provider.complete_structured(prompt, EXPLICACION_SCHEMA, "explicacion")
-            return f"{base} Modelo ({self.provider.name}): {out['explicacion']}"
+            return f"{base} Modelo ({self.provider.name}): {out['explicacion']}", True
         except Exception as exc:
-            return f"{base} [Explicación del modelo no disponible: {type(exc).__name__}]"
+            return (f"{base} [DEGRADADO: reglas deterministas sin modelo "
+                    f"({type(exc).__name__})]"), False
+
+    def _registrar_llamada(self, caso_id: str, ok: bool) -> None:
+        m = dict(getattr(self.provider, "last_call", {}) or {})
+        detalle = (f"proveedor={m.get('proveedor', '?')} "
+                   f"modelo_pedido={m.get('modelo_pedido', '-')} "
+                   f"modelo_devuelto={m.get('modelo_devuelto', '-')} "
+                   f"resp_id={m.get('respuesta_id', '-')} "
+                   f"estado={m.get('estado', '?')} "
+                   f"latencia_ms={m.get('latencia_ms', '-')} "
+                   f"uso={m.get('uso', {})}")
+        self.store.registrar(
+            caso_id, "llamada_modelo", detalle,
+            antes="sin llamada",
+            despues=("ok: texto del modelo usado en propuesta"
+                     if ok else "DEGRADADO: sin intervención exitosa del modelo"),
+        )
 
     def consultar_estados(self, filtros: dict | None = None) -> list[dict]:
         """Solo lectura estructurada: sin SQL del modelo, sin escritura."""

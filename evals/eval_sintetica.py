@@ -11,6 +11,7 @@ Requiere TESSDATA_PREFIX con spa para OCR.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -22,6 +23,10 @@ from ia_debitos.money import parse_importe
 
 
 def main() -> int:
+    print("AMBITO=determinista (extracción+reglas; el modelo NO interviene)")
+    print(f"IA_PROVIDER configurado={os.environ.get('IA_PROVIDER', 'meta')}")
+    print("Estas cifras NO son métricas de Meta ni del simulador.
+")
     base = Path(__file__).resolve().parent.parent / "demo_data" / "generated"
     expected = json.loads((base / "expected.json").read_text(encoding="utf-8"))
     ext_ok = ext_n = der_ok = der_n = abs_ok = abs_n = 0

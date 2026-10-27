@@ -12,6 +12,16 @@ Ejecutadas (entorno local, 2026-10-26):
 - Demo web: flujo proponer->revisar->historial->borrador OK;
   caso clínico deriva a humanos.
 
+## Evidencia Meta (separada del simulador)
+
+- Sonda mínima: `tools/check_meta.py` (pendiente de ejecución con clave).
+- Aceptación: `tests/test_meta_live.py` — exige llamada Meta exitosa →
+  texto usado en propuesta → revisión humana → aprobación registrada.
+  Sin clave se omite; con clave y fallo de Meta, FALLA (el modo
+  degradado no cumple el hito de integración real).
+- Métricas deterministas (extracción/reglas) y del simulador NO se
+  mezclan con evidencia Meta: cada corrida declara su proveedor.
+
 Pendientes:
 - Solicitud mínima autenticada contra Meta (clave del proyecto
   configurada localmente, fuera del repo; prueba en curso).

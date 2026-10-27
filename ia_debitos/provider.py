@@ -14,6 +14,7 @@ from __future__ import annotations
 import abc
 import json
 import os
+import time
 
 
 class ProviderError(Exception):
@@ -22,6 +23,7 @@ class ProviderError(Exception):
 
 class Provider(abc.ABC):
     name: str = "base"
+    last_call: dict  # metadatos última llamada (sin credenciales/documentos)
 
     @abc.abstractmethod
     def complete_structured(
@@ -70,9 +72,13 @@ class MetaProvider(Provider):
         )
         self._model = os.environ.get("META_MODEL", "muse-spark-1.3")
         self._default_protocol = os.environ.get("META_PROTOCOL", "responses")
+        self.last_call = {"proveedor": "meta", "estado": "sin-llamadas"}
 
     def complete_structured(self, prompt, schema, schema_name="respuesta", protocol=None):
         proto = protocol or self._default_protocol
+        meta = {"proveedor": "meta", "modelo_pedido": self._model,
+                "protocolo": proto}
+        t0 = time.monotonic()
         try:
             if proto == "responses":
                 resp = self._client.responses.create(
@@ -95,14 +101,50 @@ class MetaProvider(Provider):
             else:
                 raise ProviderError(f"protocolo desconocido: {proto}")
         except ProviderError:
+            meta.update(estado="error", latencia_ms=self._ms(t0))
+            self.last_call = meta
             raise
         except Exception as exc:  # mensaje corto, sin cuerpos ni claves
+            meta.update(estado="error",
+                        error=type(exc).__name__, latencia_ms=self._ms(t0))
+            self.last_call = meta
             raise ProviderError(f"error Meta ({type(exc).__name__})") from None
         try:
             data = json.loads(texto)
         except (json.JSONDecodeError, TypeError):
+            meta.update(estado="error", error="JSON inválido",
+                        latencia_ms=self._ms(t0))
+            self.last_call = meta
             raise ProviderError("Meta devolvió JSON inválido") from None
-        return _check_json_schema(data, schema)
+        try:
+            data = _check_json_schema(data, schema)
+        except ProviderError as exc:
+            meta.update(estado="error", error=str(exc)[:80],
+                        latencia_ms=self._ms(t0))
+            self.last_call = meta
+            raise
+        meta.update(estado="ok", modelo_devuelto=getattr(resp, "model", ""),
+                    respuesta_id=getattr(resp, "id", ""),
+                    latencia_ms=self._ms(t0), uso=self._uso(resp))
+        self.last_call = meta
+        return data
+
+    @staticmethod
+    def _ms(t0: float) -> int:
+        return int((time.monotonic() - t0) * 1000)
+
+    @staticmethod
+    def _uso(resp) -> dict:
+        u = getattr(resp, "usage", None)
+        if u is None:
+            return {}
+        out: dict = {}
+        for k in ("input_tokens", "output_tokens", "prompt_tokens",
+                  "completion_tokens", "total_tokens"):
+            v = getattr(u, k, None)
+            if v is not None:
+                out[k] = v
+        return out
 
     @staticmethod
     def _responses_text(resp) -> str:
@@ -123,9 +165,13 @@ class SimulatedProvider(Provider):
 
     def __init__(self, respuestoid: str = "demo") -> None:
         self._id = respuestoid
+        self.last_call = {"proveedor": "simulated", "estado": "sin-llamadas"}
 
     def complete_structured(self, prompt, schema, schema_name="respuesta", protocol=None):
         _ = (prompt, protocol)
+        self.last_call = {"proveedor": "simulated", "estado": "ok-simulado",
+                          "modelo_devuelto": "simulador-local",
+                          "latencia_ms": 0, "uso": {}}
         if schema_name == "explicacion":
             return {"explicacion": f"[SIMULADO-{self._id}] Derivación según reglas.",
                     "dudoso": False}

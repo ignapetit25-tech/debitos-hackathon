@@ -21,19 +21,26 @@ from ia_debitos.agent import EXPLICACION_SCHEMA
 from ia_debitos.provider import ProviderError, build_provider
 
 
-def _cargar_env() -> None:
-    env = Path(__file__).resolve().parent.parent / ".env"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def cargar_env_repo() -> str:
+    """Lee EXPLÍCITAMENTE REPO/.env (si existe). Devuelve estado legible."""
+    env = REPO_ROOT / ".env"
     if not env.exists():
-        return
+        return f"{env} (ausente)"
+    n = 0
     for linea in env.read_text(encoding="utf-8").splitlines():
         linea = linea.strip()
         if linea and not linea.startswith("#") and "=" in linea:
             k, v = linea.split("=", 1)
             os.environ.setdefault(k.strip(), v.strip().strip("'\""))
+            n += 1
+    return f"{env} (cargado, {n} vars, valores jamás impresos)"
 
 
 def main() -> int:
-    _cargar_env()
+    env_info = cargar_env_repo()
     os.environ["IA_PROVIDER"] = "meta"  # forzado: prohibido simular aquí
     try:
         prov = build_provider()
@@ -57,12 +64,16 @@ def main() -> int:
     if "SIMULADO" in txt:
         print("FALLO: respuesta con marca de simulador, no es Meta real")
         return 1
-    print(f"proveedor={prov.name}")
-    print(f"modelo={os.environ.get('META_MODEL', 'muse-spark-1.3')}")
-    print(f"protocolo={os.environ.get('META_PROTOCOL', 'responses')}")
-    print(f"latencia_ms={ms} esquema=OK dudoso={out.get('dudoso')}")
+    m = dict(getattr(prov, "last_call", {}) or {})
+    print(f"env={env_info}")
+    print(f"proveedor={m.get('proveedor')} estado={m.get('estado')}")
+    print(f"modelo_pedido={m.get('modelo_pedido')}")
+    print(f"modelo_devuelto={m.get('modelo_devuelto')}")
+    print(f"respuesta_id={m.get('respuesta_id')}")
+    print(f"protocolo={m.get('protocolo')} latencia_ms={ms} esquema=OK")
+    print(f"uso={m.get('uso')} dudoso={out.get('dudoso')}")
     print(f"explicacion={txt[:300]}")
-    print("clave_en_uso=SI (longitud no mostrada, valor jamás impreso)")
+    print("clave_en_uso=SI (valor jamás impreso)")
     return 0
 
 

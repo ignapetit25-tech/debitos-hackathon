@@ -68,7 +68,7 @@ class Decision:
 @dataclass
 class EventoHistorial:
     seq: int
-    tipo: str  # extraccion | validacion | herramienta | propuesta | revision
+    tipo: str  # extraccion | validacion | herramienta | llamada_modelo | propuesta | revision
     detalle: str
     antes: str = ""
     despues: str = ""
