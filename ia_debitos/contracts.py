@@ -72,6 +72,7 @@ class EventoHistorial:
     detalle: str
     antes: str = ""
     despues: str = ""
+    creado: str = ""  # fecha y hora local ISO del evento
 
 
 class CasoStore(abc.ABC):

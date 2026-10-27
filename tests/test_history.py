@@ -25,6 +25,20 @@ class TestHistory(unittest.TestCase):
         seqs = [h[0] for h in s.historial("C1")]
         self.assertEqual(seqs, sorted(seqs))
 
+    def test_eventos_llevan_fecha_hora(self):
+        s = SyntheticStore(tempfile.mktemp(suffix=".db"))
+        s.seed_caso(Caso("C2", "OS FICTICIA ANDINA", "F-2", (Renglon(
+            1, "CONSULTA GENERAL", "supera el valor del convenio",
+            20000, 5000),), 15000))
+        ag = Agente(s, SimulatedProvider())
+        prop = ag.proponer("C2")
+        approvals.revisar(s, prop.id, "Humano", "aprobada", "ok")
+        for h in s.historial("C2"):
+            self.assertEqual(len(h), 6)
+            self.assertIn("T", h[5])  # ISO fecha+hora
+        rev = [h for h in s.historial("C2") if h[1] == "revision"][0]
+        self.assertIn("Humano", rev[4])
+
 
 if __name__ == "__main__":
     unittest.main()

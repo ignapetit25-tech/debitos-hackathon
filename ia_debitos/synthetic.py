@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 from . import rules
@@ -43,7 +44,7 @@ CREATE TABLE IF NOT EXISTS propuestas (
   abstencion_clinica INTEGER, extraccion_confianza REAL);
 CREATE TABLE IF NOT EXISTS historial (
   seq INTEGER PRIMARY KEY AUTOINCREMENT, caso_id TEXT, tipo TEXT,
-  detalle TEXT, antes TEXT, despues TEXT);
+  detalle TEXT, antes TEXT, despues TEXT, creado TEXT DEFAULT '');
 """
 
 
@@ -54,6 +55,9 @@ class SyntheticStore(CasoStore):
         con = sqlite3.connect(self.db_path)
         try:
             con.executescript(SCHEMA)
+            cols = [r[1] for r in con.execute("PRAGMA table_info(historial)")]
+            if "creado" not in cols:  # migración: bases anteriores al timestamp
+                con.execute("ALTER TABLE historial ADD COLUMN creado TEXT DEFAULT ''")
             con.commit()
         finally:
             con.close()
@@ -124,11 +128,13 @@ class SyntheticStore(CasoStore):
 
     def registrar(self, caso_id: str, tipo: str, detalle: str,
                   antes: str = "", despues: str = "") -> None:
+        creado = datetime.now().astimezone().isoformat(timespec="seconds")
         con = self._con()
         try:
             con.execute(
-                "INSERT INTO historial (caso_id, tipo, detalle, antes, despues)"
-                " VALUES (?,?,?,?,?)", (caso_id, tipo, detalle, antes, despues),
+                "INSERT INTO historial (caso_id, tipo, detalle, antes, despues,"
+                " creado) VALUES (?,?,?,?,?,?)",
+                (caso_id, tipo, detalle, antes, despues, creado),
             )
             con.commit()
         finally:
@@ -138,7 +144,8 @@ class SyntheticStore(CasoStore):
         con = self._con()
         try:
             rows = con.execute(
-                "SELECT seq, tipo, detalle, antes, despues FROM historial"
+                "SELECT seq, tipo, detalle, antes, despues,"
+                " COALESCE(creado,'') FROM historial"
                 " WHERE caso_id=? ORDER BY seq", (caso_id,)).fetchall()
         finally:
             con.close()
