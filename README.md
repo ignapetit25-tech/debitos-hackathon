@@ -47,8 +47,15 @@ TESSDATA_PREFIX=~/.local/share/tessdata .venv/bin/python -B evals/eval_sintetica
 
 ## Limitaciones honestas
 
-- Integración Meta: documentación verificada, prueba autenticada
-  pendiente (sin credencial en este entorno).
+- Integración Meta: documentación verificada; clave del proyecto
+  configurada localmente (fuera del repo), prueba autenticada en curso.
+  Hasta ver evidencia de llamada real, todo lo Meta-labeled sigue pendiente.
 - Adaptador real (JSON): implementado, desactivado por defecto, NO verificado.
 - Ejecuciones `simulated` no demuestran funcionamiento con Meta.
 - OCR probado solo sobre fixtures generados con ruido controlado.
+
+## Estado de licencia y publicación
+
+- Licencia MIT: BORRADOR pendiente de aprobación (ver LICENSE-DRAFT-MIT.md).
+- Sin remoto configurado, sin publicar, sin cambios de visibilidad.
+- Elegibilidad del hackatón pendiente de respuesta de los organizadores.

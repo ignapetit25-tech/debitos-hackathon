@@ -1,7 +1,12 @@
 """Evaluación reproducible sobre fixtures sintéticos. Solo números medidos.
 
-Métricas: extracción (renglones+total exactos) y derivación (sector y
-abstención vs expected.json). Requiere TESSDATA_PREFIX con spa para OCR.
+Métricas: extracción (renglones+total exactos), derivación (sector vs
+expected.json) y abstención: el sistema debe derivar a humano en casos
+clínicos (esperado_abstencion=true) y producir propuesta administrativa
+en los demás (false). Un N/N en abstención acierta en AMBOS sentidos
+sobre estos casos; no demuestra precisión general ni cobertura clínica.
+
+Requiere TESSDATA_PREFIX con spa para OCR.
 """
 from __future__ import annotations
 
@@ -45,6 +50,8 @@ def main() -> int:
               f"derivacion={ref.sector} (esp {caso['esperado_sector']}) "
               f"abstencion={clin or ref.sector == rules.PENDIENTE}")
     print(f"\nEXTRACCION {ext_ok}/{ext_n}  DERIVACION {der_ok}/{der_n}  ABSTENCION {abs_ok}/{abs_n}")
+    print(f"({ext_n} casos sintéticos controlados; abstención OK = deriva a humano "
+          f"en clínicos y propone en administrativos. No demuestra precisión general.)")
     return 0 if (ext_ok, der_ok, abs_ok) == (ext_n, der_n, abs_n) else 1
 
 

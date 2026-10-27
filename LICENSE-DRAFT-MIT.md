@@ -18,3 +18,9 @@ dependencias tienen sus propias licencias (ver DEPENDENCIES.md) y el
 proveedor Meta sus condiciones (https://dev.meta.ai/docs/overview).
 Código de terceros no incluido; nada privado se publica para fingir
 trabajo nuevo.
+
+## Estado
+
+BORRADOR, pendiente de aprobación. No es licencia vigente. El
+repositorio no tiene remoto ni está publicado; no hay fecha de
+publicación hasta autorización explícita.
