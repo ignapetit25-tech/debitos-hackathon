@@ -53,6 +53,7 @@ th{background:#f3f4f6}.clin{color:var(--warn);font-weight:bold}.muted{color:#777
 <div class="banner meta" id="prov">proveedor: …</div>
 <div class="card"><h2>1 · Caso</h2>
 <div class="row"><select id="sel"></select><button class="sec" id="b-caso">ver detalle</button>
+<button class="sec" id="b-pdf">ver documento</button>
 <button id="b-prop">2 · pedir propuesta</button></div>
 <pre id="caso">Elegí un caso y pedí la propuesta.</pre></div>
 <div class="card"><h2>2 · Propuesta</h2><pre id="prop">—</pre>
@@ -62,6 +63,7 @@ th{background:#f3f4f6}.clin{color:var(--warn);font-weight:bold}.muted{color:#777
 <div class="row"><input id="r-prop" placeholder="ID propuesta (P-…)" disabled>
 <input id="r-nom" placeholder="Tu nombre (revisor)"></div>
 <p><textarea id="r-nota" rows="2" placeholder="Fundamento de tu decisión (queda registrado)"></textarea></p>
+<p class="muted">Aprobar aquí = aceptar la propuesta de derivación. No acepta el débito ni autoriza comunicaciones: la demo no envía mensajes ni modifica sistemas externos.</p>
 <div class="row"><button class="ok" id="b-ap">aprobar</button><button class="no" id="b-re">rechazar</button></div>
 <pre id="rev-out">Pendiente de tu decisión.</pre></div>
 <div class="card"><h2>5 · Historial</h2><div id="hist" class="muted">—</div></div>
@@ -86,6 +88,11 @@ $("b-caso").onclick=async()=>{
  $("caso").textContent=`${c.id} · ${c.financiador} · factura ${c.factura} · estado ${c.estado}\n`+
   c.renglones.map(r=>`R${r.nro} ${r.practica}: ${r.motivo}\n   fact $${(r.facturado_cents/100).toFixed(2)} liq $${(r.liquidado_cents/100).toFixed(2)} débito $${(r.debito_cents/100).toFixed(2)}`).join("\\n")+
   `\nTotal débito: $${(c.total_debito_cents/100).toFixed(2)}`;
+};
+$("b-pdf").onclick=async()=>{
+ const j=await call("GET","/api/caso?caso_id="+encodeURIComponent($("sel").value));
+ if(!j.caso.pdf){$("caso").textContent="Este caso no tiene PDF de origen en la demo.";return;}
+ window.open("/api/pdf?caso_id="+encodeURIComponent($("sel").value),"_blank");
 };
 $("b-prop").onclick=async()=>{
  $("prop").textContent="Consultando…";
@@ -126,8 +133,19 @@ def _prop_json(prop) -> dict:
             "extraccion_confianza": prop.extraccion_confianza}
 
 
+GENERADOS = Path(__file__).resolve().parent.parent / "demo_data" / "generated"
+
+
+def _pdf_caso(cid: str) -> Path | None:
+    if not cid or any(c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-" for c in cid):
+        return None
+    pdf = GENERADOS / f"{cid}.pdf"
+    return pdf if pdf.is_file() else None
+
+
 def _caso_json(caso) -> dict:
-    return {"id": caso.id, "financiador": caso.financiador,
+    pdf = _pdf_caso(caso.id)
+    return {"id": caso.id, "financiador": caso.financiador, "pdf": pdf.name if pdf else None,
             "factura": caso.factura, "estado": caso.estado,
             "total_debito_cents": caso.total_debito_cents,
             "renglones": [{"nro": r.nro, "practica": r.practica,
@@ -172,6 +190,23 @@ class Manejador(BaseHTTPRequestHandler):
             elif url.path == "/api/caso":
                 cid = parse_qs(url.query).get("caso_id", [""])[0]
                 _json(self, 200, {"caso": _caso_json(self.store.obtener_caso(cid))})
+            elif url.path == "/api/pdf":
+                cid = parse_qs(url.query).get("caso_id", [""])[0]
+                try:
+                    self.store.obtener_caso(cid)
+                except KeyError:
+                    _json(self, 404, {"error": "caso inexistente"})
+                    return
+                pdf = _pdf_caso(cid)
+                if pdf is None:
+                    _json(self, 404, {"error": "caso sin PDF de origen"})
+                    return
+                raw = pdf.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/pdf")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
             elif url.path == "/api/historial":
                 cid = parse_qs(url.query).get("caso_id", [""])[0]
                 _json(self, 200, {"historial": self.agente.historial(cid)})
