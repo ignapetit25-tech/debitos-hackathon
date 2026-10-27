@@ -47,9 +47,10 @@ TESSDATA_PREFIX=~/.local/share/tessdata .venv/bin/python -B evals/eval_sintetica
 
 ## Limitaciones honestas
 
-- Integración Meta: documentación verificada; clave del proyecto
-  configurada localmente (fuera del repo), prueba autenticada en curso.
-  Hasta ver evidencia de llamada real, todo lo Meta-labeled sigue pendiente.
+- Integración Meta: sonda mínima y test de aceptación OK con
+  `muse-spark-1.3` (Responses), datos ficticios, clave en `.env` local
+  fuera de Git. Falta un recorrido demo con revisión humana real.
+  Ejecuciones `simulated` siguen sin demostrar funcionamiento con Meta.
 - Adaptador real (JSON): implementado, desactivado por defecto, NO verificado.
 - Ejecuciones `simulated` no demuestran funcionamiento con Meta.
 - OCR probado solo sobre fixtures generados con ruido controlado.

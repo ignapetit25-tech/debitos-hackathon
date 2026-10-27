@@ -21,6 +21,7 @@ from .synthetic import SyntheticArancel, SyntheticRules, SyntheticStore
 
 EXPLICACION_SCHEMA = {
     "type": "object",
+    "additionalProperties": False,
     "required": ["explicacion", "dudoso"],
     "properties": {"explicacion": {"type": "string"},
                     "dudoso": {"type": "boolean"}},
