@@ -28,8 +28,17 @@ Ejecutadas (entorno local):
   de credenciales; NO validaba el esquema. El esquema quedó validado
   por la llamada exitosa posterior.
 - LÍMITE: la aprobación del test es automatizada (`revisor-hito`);
-  NO representa una revisión humana real. Falta un recorrido con Meta
-  donde una persona revise y apruebe en la demo.
+  NO representa una revisión humana real.
+- Recorrido demo con Meta (`DEMO-F123`, datos ficticios): extracción
+  2/2 sin dudosos, sumas OK (dif 0), propuesta Convenios/reclamar con
+  texto de `muse-spark-1.3`, borrador verificado cifra por cifra,
+  aprobación registrada. Historial: `llamada_modelo` proveedor=meta
+  estado=ok latencia 5400ms uso 155/1229 in/out + `revision` aprobada
+  con fundamento. Revisión operada por Muse bajo instrucción explícita
+  del usuario, registrada como `muse-demo` (no como persona): el
+  circuito proponer→revisar→aprobar con Meta quedó probado de punta
+  a punta. La elegibilidad ante los organizadores es una validación
+  distinta y sigue pendiente.
 - Clave del proyecto en `.env` local (permisos 600, ignorado por Git);
   jamás impresa ni commiteada. No se repitieron llamadas para
   reconfirmar lo ya evidenciado.
