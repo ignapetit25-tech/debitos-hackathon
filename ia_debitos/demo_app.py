@@ -84,19 +84,19 @@ $("b-caso").onclick=async()=>{
  const j=await call("GET","/api/caso?caso_id="+encodeURIComponent($("sel").value));
  const c=j.caso;
  $("caso").textContent=`${c.id} · ${c.financiador} · factura ${c.factura} · estado ${c.estado}\n`+
-  c.renglones.map(r=>`R${r.nro} ${r.practica}: ${r.motivo}\n   fact $${(r.facturado_cents/100).toFixed(2)} liq $${(r.liquidado_cents/100).toFixed(2)} débito $${(r.debito_cents/100).toFixed(2)}`).join("\n")+
+  c.renglones.map(r=>`R${r.nro} ${r.practica}: ${r.motivo}\n   fact $${(r.facturado_cents/100).toFixed(2)} liq $${(r.liquidado_cents/100).toFixed(2)} débito $${(r.debito_cents/100).toFixed(2)}`).join("\\n")+
   `\nTotal débito: $${(c.total_debito_cents/100).toFixed(2)}`;
 };
 $("b-prop").onclick=async()=>{
  $("prop").textContent="Consultando…";
  const j=await call("POST","/api/proponer",{caso_id:$("sel").value});
  const p=j.propuesta;propId=p.id;$("r-prop").value=p.id;
- $("prop").textContent=`${p.id} · ${p.sector} / ${p.accion} · sumas ${j.sumas_ok?"OK":"DIFIEREN"}\nRegla: ${p.regla.puntos} pts (${p.regla.frases.join(", ")})\n${p.abstencion_clinica?"DERIVA A HUMANO (clínico o sin criterio) — sin recomendar aceptar/reclamar\n":""}${p.explicacion}\nRefs: ${p.referencias.join(" · ")}`;
+ $("prop").textContent=`${p.id} · ${p.sector} / ${p.accion} · sumas ${j.sumas_ok?"OK":"DIFIEREN"}\nRegla: ${p.regla.puntos} pts (${p.regla.frases.join(", ")})\n${p.abstencion_clinica?"DERIVA A HUMANO (clínico o sin criterio) — sin recomendar aceptar/reclamar\\n":""}${p.explicacion}\nRefs: ${p.referencias.join(" · ")}`;
 };
 $("b-borr").onclick=async()=>{
  if(!propId){$("borr").textContent="Primero pedí una propuesta.";return;}
  const j=await call("GET","/api/borrador?propuesta_id="+encodeURIComponent(propId));
- $("borr").textContent=j.titulo+"\n\n"+j.cuerpo;
+ $("borr").textContent=j.titulo+"\\n\\n"+j.cuerpo;
 };
 $("b-hist").onclick=async()=>{
  const j=await call("GET","/api/historial?caso_id="+encodeURIComponent($("sel").value));
