@@ -1,0 +1,172 @@
+"""Implementación SINTÉTICA de los contratos (simulador de servicios preexistentes).
+
+Casos/propuestas/historial en SQLite demo (demo_data/demo.db, git-ignorado,
+regenerable con tools/reset_demo.py). Aranceles y reglas en memoria.
+TODO ficticio: financiadores, personas, facturas y valores.
+"""
+from __future__ import annotations
+
+import json
+import os
+import sqlite3
+from pathlib import Path
+
+from . import rules
+from .contracts import (ArancelService, Caso, CasoStore, Propuesta, ReglaRef,
+                        Renglon, RulesService)
+
+DB_DEFAULT = str(Path(__file__).resolve().parent.parent / "demo_data" / "demo.db")
+
+FINANCIADORES = ("OS FICTICIA ANDINA", "PREPAGA FICTICIA SUR", "ART FICTICIA NORTE")
+
+# (prestacion, financiador) -> [(desde, hasta, cents)].
+ARANCELES: dict[tuple[str, str], list[tuple[str, str, int]]] = {
+    ("CONSULTA GENERAL", "OS FICTICIA ANDINA"): [
+        ("2026-01-01", "2026-06-30", 1500000),
+        ("2026-07-01", "2026-12-31", 1650000),
+    ],
+    ("ECOGRAFIA ABDOMINAL", "OS FICTICIA ANDINA"): [
+        ("2026-01-01", "2026-12-31", 4200000),
+    ],
+    ("CONSULTA GENERAL", "PREPAGA FICTICIA SUR"): [
+        ("2026-01-01", "2026-12-31", 1800000),
+    ],
+}
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS casos (
+  id TEXT PRIMARY KEY, financiador TEXT, factura TEXT,
+  renglones_json TEXT, total_debito_cents INTEGER, estado TEXT);
+CREATE TABLE IF NOT EXISTS propuestas (
+  id TEXT PRIMARY KEY, caso_id TEXT, sector TEXT, puntos INTEGER,
+  frases_json TEXT, accion TEXT, explicacion TEXT, referencias_json TEXT,
+  abstencion_clinica INTEGER, extraccion_confianza REAL);
+CREATE TABLE IF NOT EXISTS historial (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT, caso_id TEXT, tipo TEXT,
+  detalle TEXT, antes TEXT, despues TEXT);
+"""
+
+
+class SyntheticStore(CasoStore):
+    def __init__(self, db_path: str | None = None) -> None:
+        self.db_path = db_path or os.environ.get("IA_DEMO_DB", DB_DEFAULT)
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        con = sqlite3.connect(self.db_path)
+        try:
+            con.executescript(SCHEMA)
+            con.commit()
+        finally:
+            con.close()
+
+    def _con(self) -> sqlite3.Connection:
+        return sqlite3.connect(self.db_path)
+
+    def seed_caso(self, caso: Caso) -> None:
+        con = self._con()
+        try:
+            con.execute(
+                "INSERT OR REPLACE INTO casos VALUES (?,?,?,?,?,?)",
+                (caso.id, caso.financiador, caso.factura,
+                 json.dumps([r.__dict__ for r in caso.renglones]),
+                 caso.total_debito_cents, caso.estado),
+            )
+            con.commit()
+        finally:
+            con.close()
+
+    def _row_a_caso(self, row: tuple) -> Caso:
+        cid, fin, fac, rengl_json, total, estado = row
+        rengs = tuple(Renglon(**r) for r in json.loads(rengl_json))
+        return Caso(cid, fin, fac, rengs, total, estado)
+
+    def obtener_caso(self, id: str) -> Caso:
+        con = self._con()
+        try:
+            row = con.execute("SELECT * FROM casos WHERE id=?", (id,)).fetchone()
+        finally:
+            con.close()
+        if not row:
+            raise KeyError(f"caso inexistente: {id}")
+        return self._row_a_caso(row)
+
+    def obtener_estado_casos(self, filtros: dict | None = None) -> list[Caso]:
+        filtros = filtros or {}
+        sql = "SELECT * FROM casos"
+        params: list = []
+        if "estado" in filtros:
+            sql += " WHERE estado=?"; params.append(filtros["estado"])
+        if "financiador" in filtros:
+            sql += (" AND " if params else " WHERE ") + "financiador=?"
+            params.append(filtros["financiador"])
+        con = self._con()
+        try:
+            rows = con.execute(sql, params).fetchall()
+        finally:
+            con.close()
+        return [self._row_a_caso(r) for r in rows]
+
+    def guardar_propuesta(self, caso_id: str, propuesta: Propuesta) -> None:
+        _ = self.obtener_caso(caso_id)
+        con = self._con()
+        try:
+            con.execute(
+                "INSERT OR REPLACE INTO propuestas VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (propuesta.id, propuesta.caso_id, propuesta.sector,
+                 propuesta.regla.puntos, json.dumps(list(propuesta.regla.frases)),
+                 propuesta.accion, propuesta.explicacion,
+                 json.dumps(list(propuesta.referencias)),
+                 int(propuesta.abstencion_clinica), propuesta.extraccion_confianza),
+            )
+            con.execute("UPDATE casos SET estado='propuesto' WHERE id=?", (caso_id,))
+            con.commit()
+        finally:
+            con.close()
+
+    def registrar(self, caso_id: str, tipo: str, detalle: str,
+                  antes: str = "", despues: str = "") -> None:
+        con = self._con()
+        try:
+            con.execute(
+                "INSERT INTO historial (caso_id, tipo, detalle, antes, despues)"
+                " VALUES (?,?,?,?,?)", (caso_id, tipo, detalle, antes, despues),
+            )
+            con.commit()
+        finally:
+            con.close()
+
+    def historial(self, caso_id: str) -> list[tuple]:
+        con = self._con()
+        try:
+            rows = con.execute(
+                "SELECT seq, tipo, detalle, antes, despues FROM historial"
+                " WHERE caso_id=? ORDER BY seq", (caso_id,)).fetchall()
+        finally:
+            con.close()
+        return rows
+
+    def propuesta(self, pid: str) -> dict | None:
+        con = self._con()
+        try:
+            row = con.execute("SELECT * FROM propuestas WHERE id=?", (pid,)).fetchone()
+        finally:
+            con.close()
+        if not row:
+            return None
+        keys = ("id", "caso_id", "sector", "puntos", "frases_json", "accion",
+                "explicacion", "referencias_json", "abstencion_clinica",
+                "extraccion_confianza")
+        return dict(zip(keys, row))
+
+
+class SyntheticArancel(ArancelService):
+    def consultar_arancel(self, prestacion: str, financiador: str, fecha: str) -> dict | None:
+        for (desde, hasta, cents) in ARANCELES.get((prestacion.upper(), financiador), []):
+            if desde <= fecha <= hasta:
+                return {"prestacion": prestacion.upper(), "financiador": financiador,
+                        "vigencia": [desde, hasta], "valor_cents": cents}
+        return None
+
+
+class SyntheticRules(RulesService):
+    def evaluar_reglas(self, motivo: str) -> ReglaRef:
+        return rules.evaluar(motivo)
