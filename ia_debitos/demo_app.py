@@ -1,8 +1,8 @@
-"""Demo autónoma mínima (stdlib http.server). Datos 100% ficticios.
+"""Demo autónoma (stdlib http.server). Datos 100% ficticios.
 
-Puertos/rutas: 127.0.0.1:8931. Proveedor según IA_PROVIDER (meta por
-defecto, simulated explícito). Sin clave Meta, la explicación del modelo
-se degrada con mensaje claro; reglas/cálculos siguen deterministas.
+127.0.0.1:8931. Proveedor según IA_PROVIDER (meta por defecto,
+simulated explícito). Interfaz completa: casos, propuesta, borrador,
+revisión humana e historial con fecha/hora.
 """
 from __future__ import annotations
 
@@ -22,30 +22,97 @@ from ia_debitos.synthetic import SyntheticStore
 
 PUERTO = int(os.environ.get("IA_DEMO_PORT", "8931"))
 HTML = """<!doctype html><html lang="es"><head><meta charset="utf-8">
-<title>IA Débitos — Demo ficticia</title>
-<style>body{font-family:sans-serif;max-width:900px;margin:2em auto;padding:0 1em}
-pre{background:#f4f4f4;padding:1em;white-space:pre-wrap}
-.banner{background:#fff3cd;border:1px solid #c90;padding:.5em 1em}</style></head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo IA Débitos — datos ficticios</title>
+<style>
+:root{--bg:#f7f7f8;--card:#fff;--line:#e2e2e6;--acc:#1a56db;--warn:#9a3412;--ok:#166534}
+*{box-sizing:border-box}body{font-family:system-ui,sans-serif;background:var(--bg);margin:0;color:#222}
+header{background:#111827;color:#fff;padding:1em 1.5em}
+header h1{margin:0;font-size:1.2em}header p{margin:.2em 0 0;font-size:.85em;color:#cbd5e1}
+main{max-width:1000px;margin:1.5em auto;padding:0 1em 3em;display:grid;gap:1em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1em 1.2em}
+.card h2{margin:.1em 0 .6em;font-size:1em;text-transform:uppercase;letter-spacing:.04em;color:#555}
+.banner{border-radius:10px;padding:.7em 1em;font-size:.9em}
+.banner.fict{background:#fef9c3;border:1px solid #eab308}
+.banner.meta{background:#dcfce7;border:1px solid #22c55e}
+.banner.sim{background:#ffedd5;border:1px solid #fb923c}
+button{background:var(--acc);color:#fff;border:0;border-radius:6px;padding:.5em 1em;cursor:pointer;font-size:.9em}
+button.sec{background:#4b5563}button.ok{background:var(--ok)}button.no{background:#b91c1c}
+button:disabled{opacity:.5;cursor:default}
+input,select,textarea{font-size:.9em;padding:.4em;border:1px solid var(--line);border-radius:6px;width:100%}
+.row{display:flex;gap:.6em;flex-wrap:wrap;align-items:center}.row>*{flex:1;min-width:140px}
+pre{background:#111827;color:#e5e7eb;padding:1em;border-radius:8px;white-space:pre-wrap;font-size:.85em;max-height:320px;overflow:auto}
+table{border-collapse:collapse;width:100%;font-size:.82em}
+th,td{border:1px solid var(--line);padding:.35em .5em;text-align:left;vertical-align:top}
+th{background:#f3f4f6}.clin{color:var(--warn);font-weight:bold}.muted{color:#777;font-size:.85em}
+</style></head>
 <body>
-<h1>Capa IA de débitos — DEMO (datos ficticios)</h1>
-<p class="banner" id="prov">proveedor: …</p>
-<h2>1. Casos</h2><button onclick="api('GET','/api/casos')">listar</button>
-<h2>2. Proponer <input id="caso" value="DEMO-F123" size="14">
-<button onclick="api('POST','/api/proponer',{caso_id:val('caso')})">proponer</button></h2>
-<h2>3. Revisar (humano) <input id="prop" size="14" placeholder="P-…">
-<input id="rev" value="Operador Demo" size="14">
-<button onclick="api('POST','/api/revisar',{propuesta_id:val('prop'),revisor:val('rev'),veredicto:'aprobada'})">aprobar</button>
-<button onclick="api('POST','/api/revisar',{propuesta_id:val('prop'),revisor:val('rev'),veredicto:'rechazada'})">rechazar</button></h2>
-<h2>4. Historial <button onclick="api('GET','/api/historial?caso_id='+val('caso'))">ver</button></h2>
-<h2>5. Borrador <button onclick="api('GET','/api/borrador?propuesta_id='+val('prop'))">ver</button></h2>
-<pre id="out">…</pre>
+<header><h1>Demo IA de débitos</h1><p>Propuesta → revisión humana → historial auditable</p></header>
+<main>
+<div class="banner fict">DATOS 100% FICTICIOS — Demostración. Nada aquí es un débito real.</div>
+<div class="banner meta" id="prov">proveedor: …</div>
+<div class="card"><h2>1 · Caso</h2>
+<div class="row"><select id="sel"></select><button class="sec" id="b-caso">ver detalle</button>
+<button id="b-prop">2 · pedir propuesta</button></div>
+<pre id="caso">Elegí un caso y pedí la propuesta.</pre></div>
+<div class="card"><h2>2 · Propuesta</h2><pre id="prop">—</pre>
+<div class="row"><button class="sec" id="b-borr">ver borrador</button><button class="sec" id="b-hist">ver historial</button></div></div>
+<div class="card"><h2>3 · Borrador</h2><pre id="borr">—</pre></div>
+<div class="card"><h2>4 · Revisión humana (tu decisión)</h2>
+<div class="row"><input id="r-prop" placeholder="ID propuesta (P-…)" disabled>
+<input id="r-nom" placeholder="Tu nombre (revisor)"></div>
+<p><textarea id="r-nota" rows="2" placeholder="Fundamento de tu decisión (queda registrado)"></textarea></p>
+<div class="row"><button class="ok" id="b-ap">aprobar</button><button class="no" id="b-re">rechazar</button></div>
+<pre id="rev-out">Pendiente de tu decisión.</pre></div>
+<div class="card"><h2>5 · Historial</h2><div id="hist" class="muted">—</div></div>
+</main>
 <script>
-const val=id=>document.getElementById(id).value;
-async function api(m,u,b){
- const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
- document.getElementById('out').textContent=JSON.stringify(await r.json(),null,2);
+const $=id=>document.getElementById(id);
+let propId="";
+async function call(m,u,b){
+ const r=await fetch(u,{method:m,headers:{"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined});
+ const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j;
 }
-fetch('/api/proveedor').then(r=>r.json()).then(j=>{document.getElementById('prov').textContent='proveedor: '+j.proveedor+(j.simulado?' — SIMULADO, no demuestra Meta':'');});
+async function init(){
+ const p=await call("GET","/api/proveedor");
+ const e=$("prov");e.textContent="proveedor: "+p.proveedor+(p.simulado?" — SIMULADO (no demuestra Meta)":" — Meta real");
+ e.className="banner "+(p.simulado?"sim":"meta");
+ const c=await call("GET","/api/casos");
+ $("sel").innerHTML=c.casos.map(k=>`<option value="${k.id}">${k.id} · ${k.financiador} · ${k.factura} · ${k.estado}</option>`).join("");
+}
+$("b-caso").onclick=async()=>{
+ const j=await call("GET","/api/caso?caso_id="+encodeURIComponent($("sel").value));
+ const c=j.caso;
+ $("caso").textContent=`${c.id} · ${c.financiador} · factura ${c.factura} · estado ${c.estado}\n`+
+  c.renglones.map(r=>`R${r.nro} ${r.practica}: ${r.motivo}\n   fact $${(r.facturado_cents/100).toFixed(2)} liq $${(r.liquidado_cents/100).toFixed(2)} débito $${(r.debito_cents/100).toFixed(2)}`).join("\n")+
+  `\nTotal débito: $${(c.total_debito_cents/100).toFixed(2)}`;
+};
+$("b-prop").onclick=async()=>{
+ $("prop").textContent="Consultando…";
+ const j=await call("POST","/api/proponer",{caso_id:$("sel").value});
+ const p=j.propuesta;propId=p.id;$("r-prop").value=p.id;
+ $("prop").textContent=`${p.id} · ${p.sector} / ${p.accion} · sumas ${j.sumas_ok?"OK":"DIFIEREN"}\nRegla: ${p.regla.puntos} pts (${p.regla.frases.join(", ")})\n${p.abstencion_clinica?"DERIVA A HUMANO (clínico o sin criterio) — sin recomendar aceptar/reclamar\n":""}${p.explicacion}\nRefs: ${p.referencias.join(" · ")}`;
+};
+$("b-borr").onclick=async()=>{
+ if(!propId){$("borr").textContent="Primero pedí una propuesta.";return;}
+ const j=await call("GET","/api/borrador?propuesta_id="+encodeURIComponent(propId));
+ $("borr").textContent=j.titulo+"\n\n"+j.cuerpo;
+};
+$("b-hist").onclick=async()=>{
+ const j=await call("GET","/api/historial?caso_id="+encodeURIComponent($("sel").value));
+ const rows=j.historial.map(h=>`<tr><td>${h[0]}</td><td>${h[5]||"—"}</td><td>${h[1]}</td><td>${h[2]}</td><td>${h[3]||""}</td><td>${h[4]||""}</td></tr>`).join("");
+ $("hist").innerHTML=`<table><tr><th>#</th><th>fecha/hora</th><th>tipo</th><th>detalle</th><th>antes</th><th>después</th></tr>${rows}</table>`;
+};
+async function decidir(v){
+ if(!propId){$("rev-out").textContent="Primero pedí una propuesta.";return;}
+ const nom=$("r-nom").value.trim();
+ if(!nom){$("rev-out").textContent="Escribí tu nombre como revisor.";return;}
+ const j=await call("POST","/api/revisar",{propuesta_id:propId,revisor:nom,veredicto:v,nota:$("r-nota").value.trim()});
+ $("rev-out").textContent=`${j.decision.veredicto.toUpperCase()} por ${j.decision.revisor} — registrado en historial.`;
+ $("b-hist").click();
+}
+$("b-ap").onclick=()=>decidir("aprobada");$("b-re").onclick=()=>decidir("rechazada");
+init().catch(e=>{$("prov").textContent="error: "+e.message;});
 </script></body></html>"""
 
 
@@ -57,6 +124,18 @@ def _prop_json(prop) -> dict:
             "referencias": list(prop.referencias),
             "abstencion_clinica": prop.abstencion_clinica,
             "extraccion_confianza": prop.extraccion_confianza}
+
+
+def _caso_json(caso) -> dict:
+    return {"id": caso.id, "financiador": caso.financiador,
+            "factura": caso.factura, "estado": caso.estado,
+            "total_debito_cents": caso.total_debito_cents,
+            "renglones": [{"nro": r.nro, "practica": r.practica,
+                           "motivo": r.motivo,
+                           "facturado_cents": r.facturado_cents,
+                           "liquidado_cents": r.liquidado_cents,
+                           "debito_cents": r.debito_cents}
+                          for r in caso.renglones]}
 
 
 def _json(handler: BaseHTTPRequestHandler, code: int, payload: dict) -> None:
@@ -90,6 +169,9 @@ class Manejador(BaseHTTPRequestHandler):
                                   "simulado": self.agente.provider.name == "simulated"})
             elif url.path == "/api/casos":
                 _json(self, 200, {"casos": self.agente.consultar_estados()})
+            elif url.path == "/api/caso":
+                cid = parse_qs(url.query).get("caso_id", [""])[0]
+                _json(self, 200, {"caso": _caso_json(self.store.obtener_caso(cid))})
             elif url.path == "/api/historial":
                 cid = parse_qs(url.query).get("caso_id", [""])[0]
                 _json(self, 200, {"historial": self.agente.historial(cid)})
