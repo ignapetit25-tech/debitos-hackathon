@@ -21,7 +21,8 @@ contratos.py <-- synthetic.py <-- agent.py --> provider.py
   api.meta.ai, Responses text.format / Chat response_format, clave
   explícita) + `SimulatedProvider` etiquetado.
 - `agent.py`: pipeline determinista; el modelo solo redacta explicación
-  con datos dados. Documentos = dato delimitado, nunca instrucción.
+  con datos dados (ver "Qué hace cada etapa" en README). Documentos = dato delimitado, nunca instrucción.
   Disparador clínico -> `derivar_humano` sin recomendar acción económica.
+- `drafts.py`: plantillas deterministas; el modelo no redacta borradores.
 - Fronteras: puntaje de reglas (int) y confianza de extracción (float)
   son campos distintos; propuestas y decisiones son registros separados.
