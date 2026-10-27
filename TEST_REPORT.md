@@ -49,6 +49,15 @@ Ejecutadas (entorno local):
   generado) y aclara en la revisión: aprobar la propuesta no acepta
   el débito ni autoriza comunicaciones; nada envía mensajes ni toca
   sistemas externos.
+- Revisión PERSONAL del usuario (`deler`, 27/10/2026 15:53 -03:00):
+  aprobada `P-DEMO-F123-4` (Convenios/reclamar) sobre `DEMO-F123`.
+  Cadena verificada: PDF de origen servido → sumas OK (dif 0) →
+  reglas 4 pts → `llamada_modelo` Meta ok (muse-spark-1.3, ID real,
+  6890ms, 155/1656 tokens) → propuesta → revisión con revisor,
+  propuesta, antes/después y fecha/hora (sin fundamento escrito).
+  Es revisión personal, distinta de la prueba operada por el agente
+  (`muse-demo`). `DEMO-META-2` y `DEMO-META-3` siguen pendientes
+  (0 revisiones).
 - Clave del proyecto en `.env` local (permisos 600, ignorado por Git);
   jamás impresa ni commiteada. No se repitieron llamadas para
   reconfirmar lo ya evidenciado.
