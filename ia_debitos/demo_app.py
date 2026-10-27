@@ -45,7 +45,7 @@ async function api(m,u,b){
  const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
  document.getElementById('out').textContent=JSON.stringify(await r.json(),null,2);
 }
-fetch('/api/proveedor').then(r=>r.json()).then(j=>{document.getElementById('prov').textContent='proveedor: '+j.proveedor+(j.simulado?' — SIMULADO, no demuestra Meta':''));});
+fetch('/api/proveedor').then(r=>r.json()).then(j=>{document.getElementById('prov').textContent='proveedor: '+j.proveedor+(j.simulado?' — SIMULADO, no demuestra Meta':'');});
 </script></body></html>"""
 
 
