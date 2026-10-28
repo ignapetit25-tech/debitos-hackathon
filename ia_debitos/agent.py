@@ -10,9 +10,7 @@ Límites implementados en contratos (no en advertencias):
 """
 from __future__ import annotations
 
-import itertools
-
-from . import drafts, rules
+from . import drafts, expediente, rules
 from .contracts import Caso, Propuesta, ReglaRef
 from .extract import Extraccion, extraer
 from .money import parse_importe
@@ -26,9 +24,6 @@ EXPLICACION_SCHEMA = {
     "properties": {"explicacion": {"type": "string"},
                     "dudoso": {"type": "boolean"}},
 }
-
-_contador = itertools.count(1)
-
 
 class Agente:
     def __init__(self, store: SyntheticStore, provider: Provider) -> None:
@@ -58,40 +53,57 @@ class Agente:
         )
         return ok, dif
 
-    def proponer(self, caso_id: str, fecha: str = "2026-08-15") -> Propuesta:
+    def expediente(self, caso_id: str) -> dict:
         caso = self.store.obtener_caso(caso_id)
-        motivos = " | ".join(r.motivo for r in caso.renglones)
-        clinico = rules.es_clinico(motivos)
-        regla: ReglaRef = self.reglas.evaluar_reglas(motivos)
+        return expediente.investigar(self.store, caso,
+                                     self.aranceles.consultar_arancel)
+
+    def proponer(self, caso_id: str) -> Propuesta:
+        caso = self.store.obtener_caso(caso_id)
+        inv = self.expediente(caso_id)
+        regla = inv["regla"]
         self.store.registrar(
             caso_id, "herramienta",
             f"evaluar_reglas -> {regla.sector} {regla.puntos}pts {list(regla.frases)}",
         )
         refs = [f"reglas:{','.join(regla.frases) or 'sin-criterio'}"]
         for r in caso.renglones:
-            ar = self.aranceles.consultar_arancel(r.practica, caso.financiador, fecha)
-            self.store.registrar(
-                caso_id, "herramienta",
-                f"consultar_arancel {r.practica} -> "
-                f"{ar['valor_cents'] if ar else 'sin-vigencia'}",
-            )
-            if ar:
-                refs.append(f"arancel:{ar['vigencia'][0]}..{ar['vigencia'][1]}")
-        if clinico or regla.sector == rules.PENDIENTE:
-            sector = "Auditoría Médica" if clinico else rules.PENDIENTE
-            accion = "derivar_humano"
-            abstenerse = True
-            base = ("Motivo con contenido clínico: se deriva a personas sin "
-                    "recomendar aceptar ni reclamar." if clinico else
-                    "Sin criterio suficiente: revisión humana obligatoria.")
-        else:
-            sector, accion, abstenerse = regla.sector, "reclamar", False
-            base = (f"Derivación a {regla.sector} por reglas "
-                    f"({regla.puntos} pts: {', '.join(regla.frases)}).")
+            if caso.fecha_prestacion:
+                ar = self.aranceles.consultar_arancel(r.practica, caso.financiador,
+                                                      caso.fecha_prestacion)
+                self.store.registrar(
+                    caso_id, "herramienta",
+                    f"consultar_arancel {r.practica} {caso.fecha_prestacion} -> "
+                    f"{ar['valor_cents'] if ar else 'sin-vigencia'}",
+                )
+                if ar:
+                    refs.append(f"arancel:{ar['vigencia'][0]}..{ar['vigencia'][1]}")
+            else:
+                self.store.registrar(
+                    caso_id, "herramienta",
+                    f"consultar_arancel {r.practica} -> sin fecha de prestacion"
+                    f" (no contrastable)",
+                )
+        tipos = {}
+        for h in inv["hallazgos"]:
+            tipos[h.tipo] = tipos.get(h.tipo, 0) + 1
+        resumen = ", ".join(f"{v} {k}" for k, v in sorted(tipos.items()))
+        self.store.registrar(
+            caso_id, "expediente",
+            f"hallazgos: {resumen or 'ninguno'}; faltantes: {len(inv['faltantes'])}",
+            antes="sin expediente",
+            despues=f"{inv['sector']}/{inv['accion']}: {inv['siguiente_paso']}",
+        )
+        refs.append(f"expediente:{len(inv['hallazgos'])}-hallazgos")
+        sector, accion = inv["sector"], inv["accion"]
+        abstenerse = accion != "reclamar"
+        base = (f"{inv['siguiente_paso']} Reglas: {regla.sector} "
+                f"({regla.puntos} pts: {', '.join(regla.frases) or 'sin-criterio'}). "
+                f"Hallazgos: {resumen or 'ninguno'}.")
         explicacion, modelo_ok = self._explicar_modelo(caso, base)
         self._registrar_llamada(caso_id, modelo_ok)
         prop = Propuesta(
-            id=f"P-{caso_id}-{next(_contador)}", caso_id=caso_id, sector=sector,
+            id=self.store.nuevo_id_propuesta(caso_id), caso_id=caso_id, sector=sector,
             regla=regla, accion=accion, explicacion=explicacion,
             referencias=tuple(refs), abstencion_clinica=abstenerse,
         )

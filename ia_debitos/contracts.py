@@ -31,10 +31,25 @@ class Caso:
     renglones: tuple[Renglon, ...]
     total_debito_cents: int
     estado: str = "nuevo"
+    fecha_prestacion: str = ""
 
     def validar(self) -> tuple[bool, int]:
         suma = sum(r.debito_cents for r in self.renglones)
         return suma == self.total_debito_cents, suma - self.total_debito_cents
+
+
+@dataclass(frozen=True)
+class Hallazgo:
+    id: str
+    caso_id: str
+    renglon_nro: int
+    tipo: str
+    documento: str
+    pagina: int
+    fragmento: str
+    interpretacion: str
+    limitaciones: str = ""
+    verificado: bool = False
 
 
 @dataclass(frozen=True)

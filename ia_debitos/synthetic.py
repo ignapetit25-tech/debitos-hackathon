@@ -37,7 +37,11 @@ ARANCELES: dict[tuple[str, str], list[tuple[str, str, int]]] = {
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS casos (
   id TEXT PRIMARY KEY, financiador TEXT, factura TEXT,
-  renglones_json TEXT, total_debito_cents INTEGER, estado TEXT);
+  renglones_json TEXT, total_debito_cents INTEGER, estado TEXT,
+  fecha_prestacion TEXT DEFAULT '');
+CREATE TABLE IF NOT EXISTS documentos (
+  caso_id TEXT, rol TEXT, archivo TEXT, paginas INTEGER, texto TEXT,
+  PRIMARY KEY (caso_id, rol));
 CREATE TABLE IF NOT EXISTS propuestas (
   id TEXT PRIMARY KEY, caso_id TEXT, sector TEXT, puntos INTEGER,
   frases_json TEXT, accion TEXT, explicacion TEXT, referencias_json TEXT,
@@ -56,6 +60,9 @@ class SyntheticStore(CasoStore):
         try:
             con.executescript(SCHEMA)
             cols = [r[1] for r in con.execute("PRAGMA table_info(historial)")]
+            ccols = [r[1] for r in con.execute("PRAGMA table_info(casos)")]
+            if "fecha_prestacion" not in ccols:
+                con.execute("ALTER TABLE casos ADD COLUMN fecha_prestacion TEXT DEFAULT ''")
             if "creado" not in cols:  # migración: bases anteriores al timestamp
                 con.execute("ALTER TABLE historial ADD COLUMN creado TEXT DEFAULT ''")
             con.commit()
@@ -69,24 +76,28 @@ class SyntheticStore(CasoStore):
         con = self._con()
         try:
             con.execute(
-                "INSERT OR REPLACE INTO casos VALUES (?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO casos (id, financiador, factura,"
+                " renglones_json, total_debito_cents, estado, fecha_prestacion)"
+                " VALUES (?,?,?,?,?,?,?)",
                 (caso.id, caso.financiador, caso.factura,
                  json.dumps([r.__dict__ for r in caso.renglones]),
-                 caso.total_debito_cents, caso.estado),
+                 caso.total_debito_cents, caso.estado, caso.fecha_prestacion),
             )
             con.commit()
         finally:
             con.close()
 
     def _row_a_caso(self, row: tuple) -> Caso:
-        cid, fin, fac, rengl_json, total, estado = row
+        cid, fin, fac, rengl_json, total, estado, fecha = row
         rengs = tuple(Renglon(**r) for r in json.loads(rengl_json))
-        return Caso(cid, fin, fac, rengs, total, estado)
+        return Caso(cid, fin, fac, rengs, total, estado, fecha or "")
 
     def obtener_caso(self, id: str) -> Caso:
         con = self._con()
         try:
-            row = con.execute("SELECT * FROM casos WHERE id=?", (id,)).fetchone()
+            row = con.execute("SELECT id, financiador, factura, renglones_json,"
+                                " total_debito_cents, estado, fecha_prestacion"
+                                " FROM casos WHERE id=?", (id,)).fetchone()
         finally:
             con.close()
         if not row:
@@ -95,7 +106,8 @@ class SyntheticStore(CasoStore):
 
     def obtener_estado_casos(self, filtros: dict | None = None) -> list[Caso]:
         filtros = filtros or {}
-        sql = "SELECT * FROM casos"
+        sql = ("SELECT id, financiador, factura, renglones_json,"
+               " total_debito_cents, estado, fecha_prestacion FROM casos")
         params: list = []
         if "estado" in filtros:
             sql += " WHERE estado=?"; params.append(filtros["estado"])
@@ -109,12 +121,33 @@ class SyntheticStore(CasoStore):
             con.close()
         return [self._row_a_caso(r) for r in rows]
 
+    def nuevo_id_propuesta(self, caso_id: str) -> str:
+        pref = f"P-{caso_id}-"
+        con = self._con()
+        try:
+            rows = con.execute("SELECT id FROM propuestas WHERE caso_id=?",
+                               (caso_id,)).fetchall()
+        finally:
+            con.close()
+        nums = [int(r[0][len(pref):]) for r in rows
+                if r[0].startswith(pref) and r[0][len(pref):].isdigit()]
+        return f"{pref}{(max(nums) + 1) if nums else 1}"
+
+    def propuestas_caso(self, caso_id: str) -> list[str]:
+        con = self._con()
+        try:
+            rows = con.execute("SELECT id FROM propuestas WHERE caso_id=? ORDER BY id",
+                               (caso_id,)).fetchall()
+        finally:
+            con.close()
+        return [r[0] for r in rows]
+
     def guardar_propuesta(self, caso_id: str, propuesta: Propuesta) -> None:
         _ = self.obtener_caso(caso_id)
         con = self._con()
         try:
             con.execute(
-                "INSERT OR REPLACE INTO propuestas VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO propuestas VALUES (?,?,?,?,?,?,?,?,?,?)",
                 (propuesta.id, propuesta.caso_id, propuesta.sector,
                  propuesta.regla.puntos, json.dumps(list(propuesta.regla.frases)),
                  propuesta.accion, propuesta.explicacion,
@@ -150,6 +183,26 @@ class SyntheticStore(CasoStore):
         finally:
             con.close()
         return rows
+
+    def registrar_documento(self, caso_id: str, rol: str, archivo: str,
+                          paginas: int, texto: str) -> None:
+        con = self._con()
+        try:
+            con.execute("INSERT OR REPLACE INTO documentos VALUES (?,?,?,?,?)",
+                        (caso_id, rol, archivo, paginas, texto))
+            con.commit()
+        finally:
+            con.close()
+
+    def documentos(self, caso_id: str) -> list[dict]:
+        con = self._con()
+        try:
+            rows = con.execute("SELECT rol, archivo, paginas, texto FROM documentos"
+                               " WHERE caso_id=? ORDER BY rol", (caso_id,)).fetchall()
+        finally:
+            con.close()
+        return [{"rol": r[0], "archivo": r[1], "paginas": r[2], "texto": r[3]}
+                for r in rows]
 
     def propuesta(self, pid: str) -> dict | None:
         con = self._con()

@@ -16,7 +16,9 @@ class TestInjection(unittest.TestCase):
         ag = Agente(s, SimulatedProvider())
         prop = ag.proponer("CX")
         # No recomienda aceptar/reclamar ni aprueba nada por sí sola.
-        self.assertEqual(prop.accion, "derivar_humano")
+        # Sin criterio y sin fecha: pide aclaración (derivar_humano queda
+        # para contenido clínico).
+        self.assertEqual(prop.accion, "pedir_extension")
         self.assertEqual(s.obtener_caso("CX").estado, "propuesto")
         self.assertFalse(any(h[1] == "revision" for h in s.historial("CX")))
 

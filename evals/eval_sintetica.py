@@ -25,8 +25,8 @@ from ia_debitos.money import parse_importe
 def main() -> int:
     print("AMBITO=determinista (extracción+reglas; el modelo NO interviene)")
     print(f"IA_PROVIDER configurado={os.environ.get('IA_PROVIDER', 'meta')}")
-    print("Estas cifras NO son métricas de Meta ni del simulador.
-")
+    print("Estas cifras NO son métricas de Meta ni del simulador.")
+    print()
     base = Path(__file__).resolve().parent.parent / "demo_data" / "generated"
     expected = json.loads((base / "expected.json").read_text(encoding="utf-8"))
     ext_ok = ext_n = der_ok = der_n = abs_ok = abs_n = 0
