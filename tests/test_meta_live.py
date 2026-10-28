@@ -24,12 +24,13 @@ from ia_debitos.provider import build_provider  # noqa: E402
 from ia_debitos.synthetic import SyntheticStore  # noqa: E402
 
 
-def _hay_clave() -> bool:
+def _habilitado() -> bool:
+    # Doble requisito: clave + habilitación explícita (default: omitido).
     cargar_env_repo()
-    return bool(os.environ.get("MODEL_API_KEY"))
+    return bool(os.environ.get("MODEL_API_KEY")) and os.environ.get("META_LIVE") == "1"
 
 
-@unittest.skipUnless(_hay_clave(), "sin MODEL_API_KEY: aceptación Meta omitida")
+@unittest.skipUnless(_habilitado(), "aceptación Meta omitida (requiere MODEL_API_KEY y META_LIVE=1)")
 class TestMetaLive(unittest.TestCase):
     def test_caso_admin_con_meta_y_aprobacion(self):
         os.environ["IA_PROVIDER"] = "meta"

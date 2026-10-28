@@ -109,9 +109,14 @@ Ingresar la clave (lo hace el operador, nunca en el chat):
    `grep -c '^BASETEN_API_KEY=.' .env` (imprime 1, no el valor).
 
 Primera prueba real (solo con autorización, consume créditos):
-`.venv/bin/python -B tools/check_baseten.py` — muestra metadatos
-acotados y consumo informado, jamás la clave. Luego el flujo
-completo: `.venv/bin/python -B -m unittest tests.test_baseten_live`.
+`.venv/bin/python -B tools/check_baseten.py` — exactamente 1 llamada,
+salida acotada, timeout 60s, sin reintentos; muestra metadatos y
+consumo informado, jamás la clave. Luego el flujo completo:
+`BASETEN_LIVE=1 .venv/bin/python -B -m unittest tests.test_baseten_live`.
+
+Aislamiento: ningún test live corre por el solo hecho de existir una
+clave. Meta exige `META_LIVE=1` y Baseten `BASETEN_LIVE=1`, ambos
+desactivados por defecto; sin el flag, la suite omite sin red.
 
 Estado: implementado y verificado sin red; prueba real pendiente
 de autorización.

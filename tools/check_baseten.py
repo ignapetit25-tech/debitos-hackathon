@@ -31,6 +31,7 @@ def main() -> int:
     try:
         prov = build_provider()
     except ProviderError as exc:
+        print(f"env={env_info}")
         print(f"FALLO explicito (sin clave o sin SDK): {exc}")
         return 1
     assert prov.name == "baseten", f"proveedor inesperado: {prov.name}"

@@ -10,6 +10,12 @@ Ejecutadas (entorno local):
   aceptación con datos ficticios). Sonda sin clave falla explícito
   (exit 1, 0 llamadas). Prueba real pendiente de autorización;
   0 llamadas a Baseten hasta ahora.
+- Aislamiento live: `META_LIVE=1` / `BASETEN_LIVE=1` obligatorios
+  además de la clave (default omitido). Verificado sin red: 2 tests
+  omitidos en 0,1s; con flag pero sin clave, sigue omitido.
+- Carga de `.env` verificada con marcador temporal (archivo
+  restaurado byte-idéntico, 0 secretos impresos); la sonda informa
+  la carga incluso al fallar.
 - Suite unitaria previa: 35 tests OK (dinero, reglas, aprobaciones, historial
   + timestamps, aislamiento, errores de proveedor, inyección,
   expediente + hallazgos, proceso + gestor + seguimiento). El test
