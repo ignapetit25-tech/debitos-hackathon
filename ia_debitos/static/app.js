@@ -1,7 +1,7 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const S = {casos: [], caso: null, exp: null, props: [], prop: null, hallM: [],
-  hist: [], busy: false, selH: -1, prov: null};
+  hist: [], busy: false, selH: -1, prov: null, proc: null, conv: [], seg: null};
 const fmt$ = c => "$" + (c / 100).toLocaleString("es-AR", {minimumFractionDigits: 2});
 
 function el(tag, cls, text) {
@@ -22,6 +22,19 @@ async function call(m, u, b) {
   try { j = await r.json(); } catch (e) { /* cuerpo no JSON */ }
   if (!r.ok) throw new Error((j && j.error) || ("HTTP " + r.status));
   return j;
+}
+function parseAR(s) {
+  s = String(s === undefined || s === null ? "" : s).replace(/\$/g, "").replace(/\s/g, "");
+  if (!s) return 0;
+  let neg = false;
+  if (s[0] === "-") { neg = true; s = s.slice(1); }
+  let n;
+  if (s.indexOf(".") >= 0 && s.indexOf(",") >= 0)
+    n = parseFloat(s.replace(/\./g, "").replace(",", "."));
+  else if (s.indexOf(",") >= 0) n = parseFloat(s.replace(",", "."));
+  else n = parseFloat(s);
+  if (!isFinite(n) || n < 0) return null;
+  return Math.round(n * 100) * (neg ? -1 : 1);
 }
 function badge(ok, warn, txtOk, txtWarn) {
   return el("span", "badge " + (ok ? "ok" : (warn ? "warn" : "bad")),
@@ -59,16 +72,23 @@ async function selectCaso(id) {
   if (S.busy) return;
   S.caso = null; S.exp = null; S.props = []; S.prop = null; S.hallM = []; S.hist = [];
   S.selH = -1; S.nom = ""; S.nota = ""; S.borrador = null;
+  S.proc = null; S.conv = []; S.seg = null;
   renderBandeja();
   status($("exp-body"), "loading", "Cargando expediente…");
   status($("evi-body"), "loading", "Cargando evidencia…");
   try {
-    const [cj, ej, pj, hj] = await Promise.all([
+    const [cj, ej, pj, hj, pr] = await Promise.all([
       call("GET", "/api/caso?caso_id=" + encodeURIComponent(id)),
       call("GET", "/api/expediente?caso_id=" + encodeURIComponent(id)),
       call("GET", "/api/propuestas?caso_id=" + encodeURIComponent(id)),
-      call("GET", "/api/historial?caso_id=" + encodeURIComponent(id))]);
+      call("GET", "/api/historial?caso_id=" + encodeURIComponent(id)),
+      call("GET", "/api/proceso?caso_id=" + encodeURIComponent(id))]);
     S.caso = cj.caso; S.exp = ej.expediente; S.props = pj.propuestas; S.hist = hj.historial;
+    S.proc = pr;
+    try {
+      const cv = await call("GET", "/api/convenios?financiador=" + encodeURIComponent(S.caso.financiador));
+      S.conv = cv.convenios;
+    } catch (e) { S.conv = []; }
     if (S.props.length) await selectProp(S.props[S.props.length - 1].id, true);
     renderBandeja(); renderExp(); renderEvi();
     if (window.innerWidth <= 1000) setView("expediente");
@@ -86,6 +106,38 @@ function renderExp() {
   const c = S.caso, e = S.exp;
   n.appendChild(el("p", "muted", c.id + " · " + c.financiador + " · factura " +
     c.factura + " · prestación " + (c.fecha_prestacion || "no informada")));
+  if (S.proc) {
+    const pr = el("p", null, null);
+    pr.appendChild(badge(S.proc.prioridad !== "P3", S.proc.prioridad === "P3",
+      "prioridad " + S.proc.prioridad, "prioridad " + S.proc.prioridad));
+    pr.appendChild(el("span", null, " "));
+    pr.appendChild(el("span", "muted", S.proc.sla.vence ?
+      ("SLA responde antes del " + S.proc.sla.vence + " (" + S.proc.sla.dias + " días hábiles desde " + S.proc.sla.desde + ")") :
+      "SLA pendiente de derivación (5 días hábiles)"));
+    n.appendChild(pr);
+    n.appendChild(el("h3", null, "Checklist pre-derivación"));
+    const tc = el("table", null, null);
+    S.proc.checklist.forEach(it => {
+      const tr = el("tr", null, null);
+      tr.appendChild(el("td", null, it.item));
+      tr.appendChild(el("td", null, it.valor));
+      const td = el("td", null, null);
+      td.appendChild(badge(it.estado === "ok", it.estado === "aviso", it.estado, it.estado));
+      tr.appendChild(td);
+      tc.appendChild(tr);
+    });
+    n.appendChild(tc);
+    n.appendChild(el("h3", null, "Convenios de " + c.financiador));
+    if (!S.conv.length) n.appendChild(el("p", "muted", "Sin convenios cargados."));
+    S.conv.forEach(cv => {
+      const vig = c.fecha_prestacion && cv.desde <= c.fecha_prestacion && c.fecha_prestacion <= cv.hasta;
+      const d = el("p", null, null);
+      d.appendChild(badge(vig, !vig, cv.id + " " + cv.version, cv.id + " " + cv.version));
+      d.appendChild(el("span", "muted", " " + cv.desde + " .. " + cv.hasta + " · " +
+        Object.keys(cv.aranceles).length + " aranceles"));
+      n.appendChild(d);
+    });
+  }
   const tb = el("table", null, null);
   const hr = el("tr", null, null);
   ["#", "práctica", "facturado", "liquidado", "diferencia", "valor convenido", "fuente"]
@@ -186,18 +238,101 @@ function renderPropCard(n) {
   bp2.id = "borr";
   d.appendChild(bp2);
   n.appendChild(d);
+  const sg = el("div", "card", null);
+  sg.appendChild(el("h3", null, "Devolución del sector (seguimiento)"));
+  if (S.seg) {
+    sg.appendChild(el("p", null, S.seg.decision + " · recuperable " + fmt$(S.seg.recuperable_cents) +
+      " · aceptado " + fmt$(S.seg.aceptado_cents)));
+    sg.appendChild(el("p", "muted", "Responsable: " + S.seg.responsable + " · " + S.seg.fecha +
+      (S.seg.nota ? " · " + S.seg.nota : "")));
+  } else {
+    sg.appendChild(el("p", "muted", S.prop ? "Sin respuesta registrada." : "Elegí una propuesta."));
+  }
+  if (S.prop) {
+    const sel = el("select", null, null);
+    sel.id = "sg-dec";
+    sel.setAttribute("aria-label", "Decisión del sector");
+    ["pendiente", "recuperado", "parcial", "aceptado"].forEach(v =>
+      sel.appendChild(el("option", null, v)));
+    if (S.seg) sel.value = S.seg.decision;
+    sg.appendChild(sel);
+    const r1 = el("div", "row", null);
+    const ri = el("input", null, null);
+    ri.id = "sg-rec"; ri.placeholder = "Recuperable $ (ej. 12.500,50)";
+    ri.setAttribute("aria-label", "Monto recuperable");
+    ri.value = S.seg ? (S.seg.recuperable_cents / 100).toString() : "";
+    const ai = el("input", null, null);
+    ai.id = "sg-ace"; ai.placeholder = "Aceptado $ (ej. 0)";
+    ai.setAttribute("aria-label", "Monto aceptado");
+    ai.value = S.seg ? (S.seg.aceptado_cents / 100).toString() : "";
+    r1.appendChild(ri); r1.appendChild(ai);
+    sg.appendChild(r1);
+    const r2 = el("div", "row", null);
+    const rs = el("input", null, null);
+    rs.id = "sg-resp"; rs.placeholder = "Responsable del sector";
+    rs.setAttribute("aria-label", "Responsable");
+    rs.value = S.seg ? S.seg.responsable : "";
+    const fe = el("input", null, null);
+    fe.id = "sg-fecha"; fe.type = "date";
+    fe.setAttribute("aria-label", "Fecha de respuesta");
+    fe.value = S.seg ? S.seg.fecha : "";
+    r2.appendChild(rs); r2.appendChild(fe);
+    sg.appendChild(r2);
+    const nt = document.createElement("textarea");
+    nt.id = "sg-nota"; nt.rows = 2;
+    nt.placeholder = "Nota (opcional)";
+    nt.setAttribute("aria-label", "Nota de seguimiento");
+    nt.value = S.seg ? (S.seg.nota || "") : "";
+    sg.appendChild(nt);
+    const bs = el("button", "sec", "Guardar devolución");
+    bs.disabled = S.busy;
+    bs.addEventListener("click", guardarSeg);
+    sg.appendChild(bs);
+    const so = el("div", null, null);
+    so.id = "seg-out";
+    so.setAttribute("aria-live", "polite");
+    sg.appendChild(so);
+  }
+  n.appendChild(sg);
 }
 
 async function selectProp(pid, silent) {
   S.prop = pid || null;
   S.hallM = [];
   S.borrador = null;
+  S.seg = null;
   if (!pid) { if (!silent) { renderExp(); renderEvi(); } return; }
   try {
     const j = await call("GET", "/api/hallazgos?propuesta_id=" + encodeURIComponent(pid));
     S.hallM = j.hallazgos;
-  } catch (e) { S.hallM = []; }
+    const g = await call("GET", "/api/seguimiento?propuesta_id=" + encodeURIComponent(pid));
+    S.seg = g.seguimiento;
+  } catch (e) { S.hallM = []; S.seg = null; }
   if (!silent) { renderExp(); renderEvi(); }
+}
+
+async function guardarSeg() {
+  if (S.busy || !S.prop) return;
+  const rec = parseAR($("sg-rec").value);
+  const ace = parseAR($("sg-ace").value);
+  const resp = $("sg-resp").value.trim();
+  if (rec === null || ace === null) { $("seg-out").textContent = "✕ Importes inválidos (ej. 12.500,50)."; return; }
+  if (!resp) { $("seg-out").textContent = "Escribí el responsable del sector."; return; }
+  S.busy = true;
+  try {
+    const j = await call("POST", "/api/seguimiento", {propuesta_id: S.prop,
+      decision: $("sg-dec").value, recuperable_cents: rec, aceptado_cents: ace,
+      responsable: resp, fecha: $("sg-fecha").value, nota: $("sg-nota").value.trim()});
+    S.seg = j.seguimiento;
+    const hj = await call("GET", "/api/historial?caso_id=" + encodeURIComponent(S.caso.id));
+    S.hist = hj.historial;
+    S.busy = false;
+    renderExp(); renderEvi();
+    $("seg-out").textContent = "✓ Devolución registrada.";
+  } catch (e) {
+    S.busy = false;
+    $("seg-out").textContent = "✕ Error: " + e.message;
+  }
 }
 
 async function pedir() {

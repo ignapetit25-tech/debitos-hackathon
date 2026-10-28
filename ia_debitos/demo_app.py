@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ia_debitos import approvals, drafts
+from ia_debitos import approvals, drafts, proceso
 from ia_debitos.agent import Agente
 from ia_debitos.provider import ProviderError, build_provider
 from ia_debitos.synthetic import SyntheticStore
@@ -137,6 +137,30 @@ class Manejador(BaseHTTPRequestHandler):
                                 "accion": prop["accion"],
                                 "degradado": "DEGRADADO" in (prop["explicacion"] or "")})
                 _json(self, 200, {"propuestas": out})
+            elif url.path == "/api/convenios":
+                fin = parse_qs(url.query).get("financiador", [""])[0]
+                _json(self, 200, {"convenios": self.store.convenios_financiador(fin)})
+            elif url.path == "/api/proceso":
+                cid = parse_qs(url.query).get("caso_id", [""])[0]
+                caso = self.store.obtener_caso(cid)
+                inv = self.agente.expediente(cid)
+                revs = [h for h in self.store.historial(cid) if h[1] == "revision" and h[5]]
+                desde = revs[0][5][:10] if revs else None
+                revisor = revs[-1][4].rsplit(" por ", 1)[-1] if revs else ""
+                chk = proceso.checklist(caso, inv)
+                if revisor:
+                    for it in chk:
+                        if it["item"] == "Responsable":
+                            it["valor"] = revisor
+                            it["estado"] = "ok"
+                _json(self, 200, {
+                    "prioridad": proceso.prioridad(caso.total_debito_cents),
+                    "checklist": chk, "revisor": revisor,
+                    "sla": {"desde": desde, "dias": proceso.SLA_DIAS,
+                            "vence": proceso.sumar_habiles(desde) if desde else None}})
+            elif url.path == "/api/seguimiento":
+                pid = parse_qs(url.query).get("propuesta_id", [""])[0]
+                _json(self, 200, {"seguimiento": self.store.seguimiento(pid)})
             elif url.path == "/api/hallazgos":
                 pid = parse_qs(url.query).get("propuesta_id", [""])[0]
                 if not self.store.propuesta(pid):
@@ -195,6 +219,13 @@ class Manejador(BaseHTTPRequestHandler):
                 prop = self.agente.proponer(body["caso_id"])
                 _json(self, 200, {"sumas_ok": ok, "dif_cents": dif,
                                   "propuesta": _prop_json(prop)})
+            elif self.path == "/api/seguimiento":
+                seg = approvals.seguimiento(
+                    self.store, body["propuesta_id"], body.get("decision", ""),
+                    body.get("recuperable_cents"), body.get("aceptado_cents"),
+                    body.get("responsable", ""), body.get("fecha", ""),
+                    body.get("nota", ""))
+                _json(self, 200, {"seguimiento": seg})
             elif self.path == "/api/revisar":
                 dec = approvals.revisar(
                     self.store, body["propuesta_id"], body.get("revisor", ""),

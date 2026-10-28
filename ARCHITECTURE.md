@@ -29,5 +29,7 @@ contratos.py <-- synthetic.py <-- agent.py --> provider.py
   se renderiza como texto. Documentos = dato delimitado, nunca instrucción.
   Disparador clínico -> `derivar_humano` sin recomendar acción económica.
 - `drafts.py`: plantillas deterministas; el modelo no redacta borradores.
+- `proceso.py`: prioridad, SLA hábil, checklist y validación de
+  devolución. `approvals.seguimiento`: persiste respuesta del sector.
 - Fronteras: puntaje de reglas (int) y confianza de extracción (float)
   son campos distintos; propuestas y decisiones son registros separados.

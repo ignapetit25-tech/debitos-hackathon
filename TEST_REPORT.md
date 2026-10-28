@@ -3,10 +3,18 @@
 ## Métricas deterministas (sin modelo)
 
 Ejecutadas (entorno local):
-- Suite unitaria: 30 tests OK (dinero, reglas, aprobaciones, historial
+- Suite unitaria: 35 tests OK (dinero, reglas, aprobaciones, historial
   + timestamps, aislamiento, errores de proveedor, inyección,
-  expediente + hallazgos). El test live no se repitió en esta fase
-  (presupuesto de inferencias); su última corrida fue verde.
+  expediente + hallazgos, proceso + gestor + seguimiento). El test
+  live no se repitió en esta fase (presupuesto); su última corrida
+  fue verde.
+- Gestor de convenios (ficticios, 0 inferencias): 4 versiones en 3
+  financiadores; solape junio-2026 resuelto a v2026 con aviso;
+  siembra idempotente; aranceles ahora salen del gestor.
+- Proceso: prioridad por umbrales, SLA que salta fines de semana,
+  checklist (renglones, sumas, coseguros, convenio, responsable),
+  devolución validada (decisión, montos enteros, responsable, fecha)
+  con evento `seguimiento`. Captura `docs/shots/05-proceso.png`.
 - Evaluación sintética sobre 7 casos controlados: extracción 7/7,
   derivación 7/7, abstención 7/7 (incluye 1 PDF escaneado con OCR
   spa, confianza 0.92). "Abstención 7/7" significa: derivó a humano

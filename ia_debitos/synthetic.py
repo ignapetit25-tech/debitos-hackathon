@@ -20,20 +20,6 @@ DB_DEFAULT = str(Path(__file__).resolve().parent.parent / "demo_data" / "demo.db
 
 FINANCIADORES = ("OS FICTICIA ANDINA", "PREPAGA FICTICIA SUR", "ART FICTICIA NORTE")
 
-# (prestacion, financiador) -> [(desde, hasta, cents)].
-ARANCELES: dict[tuple[str, str], list[tuple[str, str, int]]] = {
-    ("CONSULTA GENERAL", "OS FICTICIA ANDINA"): [
-        ("2026-01-01", "2026-06-30", 1500000),
-        ("2026-07-01", "2026-12-31", 1650000),
-    ],
-    ("ECOGRAFIA ABDOMINAL", "OS FICTICIA ANDINA"): [
-        ("2026-01-01", "2026-12-31", 4200000),
-    ],
-    ("CONSULTA GENERAL", "PREPAGA FICTICIA SUR"): [
-        ("2026-01-01", "2026-12-31", 1800000),
-    ],
-}
-
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS casos (
   id TEXT PRIMARY KEY, financiador TEXT, factura TEXT,
@@ -44,6 +30,12 @@ CREATE TABLE IF NOT EXISTS documentos (
   PRIMARY KEY (caso_id, rol));
 CREATE TABLE IF NOT EXISTS propuesta_hallazgos (
   propuesta_id TEXT, hallazgo_json TEXT);
+CREATE TABLE IF NOT EXISTS convenios (
+  id TEXT PRIMARY KEY, financiador TEXT, version TEXT,
+  vigencia_desde TEXT, vigencia_hasta TEXT, aranceles_json TEXT);
+CREATE TABLE IF NOT EXISTS seguimiento (
+  propuesta_id TEXT PRIMARY KEY, decision TEXT, recuperable_cents INTEGER,
+  aceptado_cents INTEGER, responsable TEXT, fecha TEXT, nota TEXT);
 CREATE TABLE IF NOT EXISTS propuestas (
   id TEXT PRIMARY KEY, caso_id TEXT, sector TEXT, puntos INTEGER,
   frases_json TEXT, accion TEXT, explicacion TEXT, referencias_json TEXT,
@@ -68,6 +60,7 @@ class SyntheticStore(CasoStore):
             if "creado" not in cols:  # migración: bases anteriores al timestamp
                 con.execute("ALTER TABLE historial ADD COLUMN creado TEXT DEFAULT ''")
             con.commit()
+            sembrar_convenios(self)
         finally:
             con.close()
 
@@ -227,6 +220,64 @@ class SyntheticStore(CasoStore):
             con.close()
         return [json.loads(r[0]) for r in rows]
 
+    def registrar_convenio(self, id: str, financiador: str, version: str,
+                         desde: str, hasta: str, aranceles: dict) -> None:
+        import json as _j
+        con = self._con()
+        try:
+            con.execute("INSERT OR REPLACE INTO convenios VALUES (?,?,?,?,?,?)",
+                        (id, financiador, version, desde, hasta,
+                         _j.dumps(aranceles, ensure_ascii=False)))
+            con.commit()
+        finally:
+            con.close()
+
+    def convenios_financiador(self, financiador: str) -> list[dict]:
+        import json as _j
+        con = self._con()
+        try:
+            rows = con.execute("SELECT id, version, vigencia_desde, vigencia_hasta,"
+                               " aranceles_json FROM convenios WHERE financiador=?"
+                               " ORDER BY vigencia_desde", (financiador,)).fetchall()
+        finally:
+            con.close()
+        return [{"id": r[0], "version": r[1], "desde": r[2], "hasta": r[3],
+                 "aranceles": _j.loads(r[4])} for r in rows]
+
+    def convenio_vigente(self, financiador: str, fecha: str) -> tuple[dict | None, bool]:
+        cands = [c for c in self.convenios_financiador(financiador)
+                 if c["desde"] <= fecha <= c["hasta"]]
+        if not cands:
+            return None, False
+        cands.sort(key=lambda c: c["desde"], reverse=True)
+        return cands[0], len(cands) > 1
+
+    def guardar_seguimiento(self, propuesta_id: str, decision: str, recuperable: int,
+                            aceptado: int, responsable: str, fecha: str,
+                            nota: str = "") -> None:
+        if not self.propuesta(propuesta_id):
+            raise KeyError(f"propuesta inexistente: {propuesta_id}")
+        con = self._con()
+        try:
+            con.execute("INSERT OR REPLACE INTO seguimiento VALUES (?,?,?,?,?,?,?)",
+                        (propuesta_id, decision, recuperable, aceptado,
+                         responsable, fecha, nota))
+            con.commit()
+        finally:
+            con.close()
+
+    def seguimiento(self, propuesta_id: str) -> dict | None:
+        con = self._con()
+        try:
+            row = con.execute("SELECT * FROM seguimiento WHERE propuesta_id=?",
+                              (propuesta_id,)).fetchone()
+        finally:
+            con.close()
+        if not row:
+            return None
+        return dict(zip(("propuesta_id", "decision", "recuperable_cents",
+                         "aceptado_cents", "responsable", "fecha", "nota"), row))
+
     def propuesta(self, pid: str) -> dict | None:
         con = self._con()
         try:
@@ -241,13 +292,43 @@ class SyntheticStore(CasoStore):
         return dict(zip(keys, row))
 
 
+CONVENIOS_SEED = [
+    ("CONV-AND-2025", "OS FICTICIA ANDINA", "v2025", "2025-01-01", "2026-06-30",
+     {"CONSULTA GENERAL": 1500000, "ECOGRAFIA ABDOMINAL": 4000000}),
+    ("CONV-AND-2026", "OS FICTICIA ANDINA", "v2026", "2026-06-01", "2026-12-31",
+     {"CONSULTA GENERAL": 1650000, "ECOGRAFIA ABDOMINAL": 4200000}),
+    ("CONV-SUR-2026", "PREPAGA FICTICIA SUR", "v2026", "2026-01-01", "2026-12-31",
+     {"CONSULTA GENERAL": 1800000}),
+    ("CONV-NOR-2026", "ART FICTICIA NORTE", "v2026", "2026-01-01", "2026-12-31",
+     {"CONSULTA GENERAL": 1500000, "ECOGRAFIA ABDOMINAL": 4000000}),
+]
+
+
+def sembrar_convenios(store: "SyntheticStore") -> int:
+    n = 0
+    for id, fin, ver, desde, hasta, ar in CONVENIOS_SEED:
+        if not [c for c in store.convenios_financiador(fin) if c["id"] == id]:
+            store.registrar_convenio(id, fin, ver, desde, hasta, ar)
+            n += 1
+    return n
+
+
 class SyntheticArancel(ArancelService):
+    def __init__(self, store: "SyntheticStore | None" = None) -> None:
+        self._store = store
+
     def consultar_arancel(self, prestacion: str, financiador: str, fecha: str) -> dict | None:
-        for (desde, hasta, cents) in ARANCELES.get((prestacion.upper(), financiador), []):
-            if desde <= fecha <= hasta:
-                return {"prestacion": prestacion.upper(), "financiador": financiador,
-                        "vigencia": [desde, hasta], "valor_cents": cents}
-        return None
+        if self._store is None:
+            return None
+        conv, _amb = self._store.convenio_vigente(financiador, fecha)
+        if not conv:
+            return None
+        val = conv["aranceles"].get(prestacion.upper())
+        if val is None:
+            return None
+        return {"prestacion": prestacion.upper(), "financiador": financiador,
+                "vigencia": [conv["desde"], conv["hasta"]], "valor_cents": val,
+                "convenio": conv["id"], "version": conv["version"], "ambiguo": _amb}
 
 
 class SyntheticRules(RulesService):

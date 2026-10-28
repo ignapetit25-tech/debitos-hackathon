@@ -83,7 +83,10 @@ def valor_convenido(prestacion: str, financiador: str, fecha: str,
     ar = arancel_fn(prestacion, financiador, fecha)
     if not ar:
         return None, "sin valor convenido aplicable a la fecha"
-    return ar["valor_cents"], f"arancel {ar['vigencia'][0]}..{ar['vigencia'][1]}"
+    fuente = f"{ar.get('convenio', 'arancel')} {ar.get('version', '')} {ar['vigencia'][0]}..{ar['vigencia'][1]}".strip()
+    if ar.get("ambiguo"):
+        fuente += " [solape de vigencias: revisar]"
+    return ar["valor_cents"], fuente
 
 
 def _hid(caso_id: str, nro: int, i: int) -> str:

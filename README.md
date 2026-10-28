@@ -30,6 +30,12 @@ débitos. "Auditoría Médica" es un sector humano de destino.
   Determinista, sin modelo.
 - Reglas (`rules.py` + aranceles): puntaje y sector por frases.
   Determinista, sin modelo.
+- Convenios (`synthetic.py` gestor): versiones por financiador con
+  vigencia y tabla de aranceles (ficticios); el valor aplicable se
+  elige por fecha de prestación y los solapes se advierten.
+- Proceso (`proceso.py`): prioridad P1/P2/P3 por monto, SLA 5 días
+  hábiles desde la revisión, checklist pre-derivación y devolución
+  del sector (decisión, recuperable/aceptado, responsable, fecha).
 - Aporte de Meta (`provider.py` + `agent.py`): devuelve hallazgos
   estructurados (documento, página, fragmento, interpretación,
   limitaciones). El código descarta tipos inválidos y verifica cada

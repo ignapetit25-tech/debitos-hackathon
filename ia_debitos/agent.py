@@ -57,7 +57,7 @@ class Agente:
     def __init__(self, store: SyntheticStore, provider: Provider) -> None:
         self.store = store
         self.provider = provider
-        self.aranceles = SyntheticArancel()
+        self.aranceles = SyntheticArancel(store)
         self.reglas = SyntheticRules()
 
     def ingerir_pdf(self, caso_id: str, pdf_path: str) -> Extraccion:
