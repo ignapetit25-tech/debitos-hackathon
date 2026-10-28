@@ -3,7 +3,14 @@
 ## Métricas deterministas (sin modelo)
 
 Ejecutadas (entorno local):
-- Suite unitaria: 35 tests OK (dinero, reglas, aprobaciones, historial
+- Suite sin API: 40 tests OK (35 previos + 5 Baseten sin red:
+  sin-clave explícita, modelo/base por defecto, timeout 60 y
+  max_retries 0, error de red sin éxito simulado, solo-chat).
+- Baseten: implementado (`BasetenProvider`, sonda mínima y test de
+  aceptación con datos ficticios). Sonda sin clave falla explícito
+  (exit 1, 0 llamadas). Prueba real pendiente de autorización;
+  0 llamadas a Baseten hasta ahora.
+- Suite unitaria previa: 35 tests OK (dinero, reglas, aprobaciones, historial
   + timestamps, aislamiento, errores de proveedor, inyección,
   expediente + hallazgos, proceso + gestor + seguimiento). El test
   live no se repitió en esta fase (presupuesto); su última corrida

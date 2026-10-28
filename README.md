@@ -94,6 +94,28 @@ TESSDATA_PREFIX=~/.local/share/tessdata .venv/bin/python -B evals/eval_sintetica
 - Ejecuciones `simulated` no demuestran funcionamiento con Meta.
 - OCR probado solo sobre fixtures generados con ruido controlado.
 
+## Baseten (hackathon)
+
+Proveedor `baseten` (OpenAI-compatible, solo Chat Completions):
+base `https://inference.baseten.co/v1`, modelo exacto
+`meta-models/muse-spark-open-1026`. Timeout explícito
+(`BASETEN_TIMEOUT`, default 60s), sin reintentos. El proveedor Meta
+de Pi (`muse-spark-1.3`) no se modificó.
+
+Ingresar la clave (lo hace el operador, nunca en el chat):
+1. Abrir con un editor `pmc-debitos-ia/.env` (ignorado por Git).
+2. Agregar la línea `BASETEN_API_KEY=...` con la clave del hackathon.
+3. Guardar; verificar solo presencia con
+   `grep -c '^BASETEN_API_KEY=.' .env` (imprime 1, no el valor).
+
+Primera prueba real (solo con autorización, consume créditos):
+`.venv/bin/python -B tools/check_baseten.py` — muestra metadatos
+acotados y consumo informado, jamás la clave. Luego el flujo
+completo: `.venv/bin/python -B -m unittest tests.test_baseten_live`.
+
+Estado: implementado y verificado sin red; prueba real pendiente
+de autorización.
+
 ## Estado de licencia y publicación
 
 - Licencia MIT: BORRADOR pendiente de aprobación (ver LICENSE-DRAFT-MIT.md).

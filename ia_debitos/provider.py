@@ -158,6 +158,84 @@ class MetaProvider(Provider):
         return "".join(partes)
 
 
+class BasetenProvider(Provider):
+    """Baseten Model API (OpenAI-compatible). Requiere BASETEN_API_KEY.
+
+    Base: BASETEN_BASE_URL (default https://inference.baseten.co/v1).
+    Modelo: BASETEN_MODEL (default meta-models/muse-spark-open-1026).
+    Solo protocolo chat (documentado en Baseten); timeout explicito y
+    SIN reintentos automaticos. Docs: https://docs.baseten.co/quickstart
+    """
+
+    name = "baseten"
+
+    def __init__(self) -> None:
+        try:
+            from openai import OpenAI
+        except ImportError as exc:
+            raise ProviderError("falta paquete openai (pip install -r requirements.txt)") from exc
+        key = os.environ.get("BASETEN_API_KEY", "")
+        if not key:
+            raise ProviderError("falta BASETEN_API_KEY en entorno (.env)")
+        try:
+            timeout = float(os.environ.get("BASETEN_TIMEOUT", "60"))
+        except ValueError:
+            raise ProviderError("BASETEN_TIMEOUT debe ser numero") from None
+        self._client = OpenAI(
+            base_url=os.environ.get("BASETEN_BASE_URL", "https://inference.baseten.co/v1"),
+            api_key=key,
+            timeout=timeout,
+            max_retries=0,
+        )
+        self._model = os.environ.get("BASETEN_MODEL", "meta-models/muse-spark-open-1026")
+        self.last_call = {"proveedor": "baseten", "estado": "sin-llamadas"}
+
+    def complete_structured(self, prompt, schema, schema_name="respuesta", protocol=None):
+        if protocol not in (None, "chat"):
+            raise ProviderError(f"Baseten solo admite chat, no: {protocol}")
+        meta = {"proveedor": "baseten", "modelo_pedido": self._model, "protocolo": "chat"}
+        t0 = time.monotonic()
+        try:
+            resp = self._client.chat.completions.create(
+                model=self._model,
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_schema",
+                                 "json_schema": {"name": schema_name, "schema": schema,
+                                                 "strict": True}},
+            )
+            texto = resp.choices[0].message.content or ""
+        except ProviderError:
+            meta.update(estado="error", latencia_ms=self._ms(t0))
+            self.last_call = meta
+            raise
+        except Exception as exc:  # mensaje corto, sin cuerpos ni claves
+            meta.update(estado="error", error=type(exc).__name__,
+                        latencia_ms=self._ms(t0))
+            self.last_call = meta
+            raise ProviderError(f"error Baseten ({type(exc).__name__})") from None
+        try:
+            data = json.loads(texto)
+        except (json.JSONDecodeError, TypeError):
+            meta.update(estado="error", error="JSON inválido", latencia_ms=self._ms(t0))
+            self.last_call = meta
+            raise ProviderError("Baseten devolvió JSON inválido") from None
+        try:
+            data = _check_json_schema(data, schema)
+        except ProviderError as exc:
+            meta.update(estado="error", error=str(exc)[:80], latencia_ms=self._ms(t0))
+            self.last_call = meta
+            raise
+        meta.update(estado="ok", modelo_devuelto=getattr(resp, "model", ""),
+                    respuesta_id=getattr(resp, "id", ""),
+                    latencia_ms=self._ms(t0), uso=MetaProvider._uso(resp))
+        self.last_call = meta
+        return data
+
+    @staticmethod
+    def _ms(t0: float) -> int:
+        return int((time.monotonic() - t0) * 1000)
+
+
 class SimulatedProvider(Provider):
     """SIMULADO para pruebas sin credenciales. No demuestra nada sobre Meta."""
 
@@ -192,10 +270,12 @@ class SimulatedProvider(Provider):
 
 
 def build_provider(nombre: str | None = None) -> Provider:
-    """'meta' (default) o 'simulated' (explícito). Sin fallback silencioso."""
+    """'meta' (default), 'baseten' o 'simulated' (explícito). Sin fallback silencioso."""
     elegido = (nombre or os.environ.get("IA_PROVIDER", "meta")).strip().lower()
     if elegido == "simulated":
         return SimulatedProvider()
     if elegido == "meta":
         return MetaProvider()
+    if elegido == "baseten":
+        return BasetenProvider()
     raise ProviderError(f"proveedor desconocido: {elegido}")
