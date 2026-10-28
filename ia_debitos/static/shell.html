@@ -1,0 +1,27 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expediente IA Débitos — datos ficticios</title>
+<link rel="stylesheet" href="/static/app.css"></head>
+<body data-view="bandeja">
+<header><h1>Expediente IA de débitos</h1><p>Bandeja · expediente con evidencia · revisión humana</p></header>
+<div class="banner fict">DATOS 100% FICTICIOS — Demostración. Nada aquí es un débito real.</div>
+<div class="banner meta" id="prov">Proveedor configurado: …</div>
+<nav class="tabs" aria-label="Vistas">
+<button class="sec" id="tab-bandeja">Bandeja</button>
+<button class="sec" id="tab-expediente">Expediente</button>
+<button class="sec" id="tab-evidencia">Evidencia</button>
+</nav>
+<main class="work">
+<section class="pane" id="pane-ban" aria-label="Bandeja de casos">
+<h2>Bandeja de casos</h2><div id="ban-status" aria-live="polite"></div>
+<ul class="casos" id="casos" role="listbox" aria-label="Casos"></ul>
+</section>
+<section class="pane" id="pane-exp" aria-label="Expediente">
+<h2>Expediente</h2><div id="exp-body" aria-live="polite"></div>
+</section>
+<section class="pane" id="pane-evi" aria-label="Evidencia">
+<h2>Evidencia</h2><div id="evi-body" aria-live="polite"></div>
+</section>
+</main>
+<script src="/static/app.js"></script>
+</body></html>
