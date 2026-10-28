@@ -12,9 +12,11 @@ El proyecto nace de la experiencia de su creador como responsable del sector Dé
 
 ## Qué hace
 
-PDF ficticio → extracción (texto u OCR español) → validación de sumas
-→ consulta de reglas y aranceles → propuesta de derivación con
-explicación → revisión humana obligatoria → historial antes/después.
+Expediente ficticio (factura + liquidación + convenio) → extracción y
+conciliación determinista → hallazgos verificables → aporte de Meta
+con citas comprobadas por código → propuesta → borrador → revisión
+humana obligatoria → historial auditable. UI en 3 áreas: bandeja,
+expediente, evidencia.
 
 Límites duros (en contratos, no en carteles): la IA no evalúa medicina,
 no recibe historias clínicas, no envía correos, no acepta/rechaza
@@ -28,9 +30,12 @@ débitos. "Auditoría Médica" es un sector humano de destino.
   Determinista, sin modelo.
 - Reglas (`rules.py` + aranceles): puntaje y sector por frases.
   Determinista, sin modelo.
-- Aporte de Meta (`provider.py` + `agent.py`): redacta la explicación
-  de la propuesta SOLO con datos dados (no inventa importes, puntajes
-  ni sectores). Es lo único que hace el modelo.
+- Aporte de Meta (`provider.py` + `agent.py`): devuelve hallazgos
+  estructurados (documento, página, fragmento, interpretación,
+  limitaciones). El código descarta tipos inválidos y verifica cada
+  cita contra el documento; lo no verificable se marca CITA NO
+  VERIFICADA. El modelo no calcula, no decide el sector y no inventa
+  confianza numérica.
 - Borradores (`drafts.py`): plantillas deterministas con datos del
   caso. Propuestas, no envíos.
 

@@ -16,12 +16,14 @@ Aclaración inicial (textual):
 
 ## Recorrido (0:40–2:30)
 
-1. PDF ficticio `DEMO-META-3` → ver documento de origen.
+1. Expediente `EXP-900` → 3 documentos de origen (factura,
+   liquidación, convenio con vigencia).
 2. Extracción: 2 renglones, origen texto, confianza 1.0, sin dudosos.
-3. Conciliación: $13.000 + $18.000 = $31.000, dif 0 (centavos enteros).
-4. Propuesta: Convenios/reclamar, 4 pts por "valor del convenio".
-5. Explicación de Meta: qué aportó el modelo (redacción con datos
-   dados) y qué es determinista (cifras, sector, reglas).
+3. Conciliación: $16.500 + $42.000 = $58.500, dif 0 (centavos
+   enteros); valores convenidos vigentes a la prestación.
+4. Propuesta: Convenios/reclamar respaldada por hallazgos.
+5. Aporte de Meta: 10 hallazgos con citas comprobadas por código
+   (qué se verificó y qué quedó marcado no verificado).
 6. Borrador de reclamo: plantilla con datos verificables.
 7. Revisión personal en la interfaz: aprobar la propuesta no acepta
    el débito ni autoriza comunicaciones.

@@ -3,8 +3,10 @@
 ## Métricas deterministas (sin modelo)
 
 Ejecutadas (entorno local):
-- Suite unitaria: 20 tests OK (dinero, reglas, aprobaciones, historial
-  + timestamps, aislamiento, errores de proveedor, inyección).
+- Suite unitaria: 30 tests OK (dinero, reglas, aprobaciones, historial
+  + timestamps, aislamiento, errores de proveedor, inyección,
+  expediente + hallazgos). El test live no se repitió en esta fase
+  (presupuesto de inferencias); su última corrida fue verde.
 - Evaluación sintética sobre 7 casos controlados: extracción 7/7,
   derivación 7/7, abstención 7/7 (incluye 1 PDF escaneado con OCR
   spa, confianza 0.92). "Abstención 7/7" significa: derivó a humano
@@ -21,7 +23,21 @@ Ejecutadas (entorno local):
   devuelto, ID de respuesta, estado, latencia y consumo informado.
 - Aceptación `tests/test_meta_live.py`: OK. Llamada real → texto del
   modelo usado en la propuesta → evento `llamada_modelo` auditable →
-  aprobación registrada en historial. Suite total: 21/21.
+  aprobación registrada en historial.
+- Expediente `EXP-900` (factura + liquidación + convenio, prestación
+  2026-08-10): 1 llamada Meta → 10 hallazgos persistidos, 8 con cita
+  verificada y 2 marcados CITA NO VERIFICADA; consumo 615/13057
+  in/out (13.672 de 20.000 tokens de presupuesto F2). Propuesta
+  Convenios/reclamar respaldada, pendiente de revisión.
+- Matriz de 6 fallos (proveedor simulado, 0 inferencias): convenio
+  ausente → pedir_extension; vigencia incorrecta → pedir_extension;
+  sumas inconsistentes → inconsistencia + pedir_extension; referencia
+  inexistente → CITA NO VERIFICADA explícita; cambio de caso durante
+  solicitud → guard busy + botones deshabilitados (inspección);
+  proveedor caído → DEGRADADO con expediente determinista intacto.
+- UI verificada en motor JS real (jsdom contra el servidor): banner
+  Meta, 10 casos en bandeja, expediente, 10 hallazgos, 3 documentos,
+  historial; 0 errores JS; 0 usos de innerHTML.
 - Corrección requerida por Meta: `EXPLICACION_SCHEMA` necesitó
   `"additionalProperties": False` (modo estricto). El
   `AuthenticationError` anterior solo confirmaba conectividad y rechazo

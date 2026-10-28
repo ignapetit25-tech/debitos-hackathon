@@ -4,13 +4,15 @@
 capa IA independiente construida durante el hackatón, con demo y
 datos completamente ficticios. Origen: su creador es responsable
 del sector Débitos de un policlínico argentino.
-[0:25] Caso `DEMO-META-3` (OS ficticia, F-400, $31.000): ver documento
-de origen (PDF generado), detalle de renglones e importes.
-[0:50] Pedir propuesta: validación de sumas OK, reglas → Convenios
-con puntaje y frases, aranceles consultados.
-[1:20] Explicación de Meta (`muse-spark-1.3`): redacta con datos
-dados; mostrar qué aportó y qué NO (cifras y sector son
-deterministas). Borrador: plantilla, propuesta, no envío.
+[0:25] Caso `EXP-900`: bandeja → expediente con 3 documentos
+(factura, liquidación, convenio). Tabla: facturado, liquidado,
+diferencia y valor convenido vigente a la prestación.
+[0:50] Hallazgos deterministas + faltantes + siguiente paso. Pedir
+propuesta: 10 hallazgos de Meta con citas comprobadas por código
+(8 OK, 2 marcadas no verificadas).
+[1:20] Evidencia: clic en un hallazgo → fragmento, documento, página,
+interpretación y limitaciones. Detalles Meta en desplegable.
+Borrador: plantilla, propuesta, no envío.
 [1:50] Revisión: aprobar la propuesta NO acepta el débito NI autoriza
 comunicaciones; la demo no envía mensajes ni toca sistemas externos.
 [2:10] Historial: fecha/hora con zona, llamada al modelo (proveedor,
