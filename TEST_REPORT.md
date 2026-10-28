@@ -38,6 +38,12 @@ Ejecutadas (entorno local):
 - UI verificada en motor JS real (jsdom contra el servidor): banner
   Meta, 10 casos en bandeja, expediente, 10 hallazgos, 3 documentos,
   historial; 0 errores JS; 0 usos de innerHTML.
+- Capturas `docs/shots/01-bandeja.png` … `04-revision.png`
+  (Playwright contra la página local, 0 errores JS, 0 inferencias):
+  bandeja con estados e importes, expediente conciliado de `EXP-900`,
+  evidencia con hallazgos cita OK / CITA NO VERIFICADA y formulario
+  de revisión pendiente (sin decidir). Detalle cosmético pendiente:
+  anchos de columna en tablas angostas.
 - Corrección requerida por Meta: `EXPLICACION_SCHEMA` necesitó
   `"additionalProperties": False` (modo estricto). El
   `AuthenticationError` anterior solo confirmaba conectividad y rechazo
