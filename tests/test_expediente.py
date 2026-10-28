@@ -111,3 +111,47 @@ class TestExpediente(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FakeMeta(Provider):
+    name = "meta"
+    def __init__(self, halls):
+        self._h = halls
+        self.last_call = {"proveedor": "meta", "estado": "ok"}
+    def complete_structured(self, *a, **k):
+        return {"hallazgos": self._h}
+
+
+class TestHallazgosModelo(unittest.TestCase):
+    DOC = "VIGENCIA: 2026-01-01..2026-12-31 ARANCEL: CONSULTA GENERAL $16.500"
+
+    def test_valido_se_verifica_e_invalido_se_descarta(self):
+        s = SyntheticStore(tempfile.mktemp(suffix=".db"))
+        s.seed_caso(caso("2026-08-15", "supera el valor del convenio", 2000000, 500000))
+        s.registrar_documento("E1", "convenio", "c.pdf", 1, self.DOC)
+        prov = FakeMeta([
+            {"renglon_nro": 1, "tipo": "diferencia_respaldada", "documento": "convenio",
+             "pagina": 1, "fragmento": "ARANCEL: CONSULTA GENERAL $16.500",
+             "interpretacion": "Valor vigente aplicable.", "limitaciones": ""},
+            {"renglon_nro": 0, "tipo": "invento", "documento": "convenio",
+             "pagina": 1, "fragmento": "x", "interpretacion": "y", "limitaciones": ""},
+            {"renglon_nro": 1, "tipo": "inconsistencia", "documento": "liquidacion",
+             "pagina": 1, "fragmento": "RENGLON 1: DEBITO $15.000",
+             "interpretacion": "Doc no vinculado.", "limitaciones": ""},
+        ])
+        ag = Agente(s, prov)
+        prop = ag.proponer("E1")
+        hs = s.hallazgos_propuesta(prop.id)
+        self.assertEqual(len(hs), 2)  # tipo inválido descartado
+        self.assertTrue(hs[0]["verificado"])  # cita coincide
+        self.assertFalse(hs[1]["verificado"])  # doc no vinculado
+        self.assertIn("cita OK", prop.explicacion)
+        self.assertIn("CITA NO VERIFICADA", prop.explicacion)
+
+    def test_sin_hallazgos_degrada(self):
+        s = SyntheticStore(tempfile.mktemp(suffix=".db"))
+        s.seed_caso(caso("2026-08-15", "supera el valor del convenio", 2000000, 500000))
+        ag = Agente(s, FakeMeta([]))
+        prop = ag.proponer("E1")
+        self.assertIn("DEGRADADO", prop.explicacion)
+        self.assertEqual(prop.accion, "reclamar")  # lo determinista se conserva

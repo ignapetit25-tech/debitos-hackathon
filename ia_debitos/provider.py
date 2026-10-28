@@ -172,6 +172,13 @@ class SimulatedProvider(Provider):
         self.last_call = {"proveedor": "simulated", "estado": "ok-simulado",
                           "modelo_devuelto": "simulador-local",
                           "latencia_ms": 0, "uso": {}}
+        if schema_name == "hallazgos":
+            return {"hallazgos": [{
+                "renglon_nro": 0, "tipo": "evidencia_insuficiente",
+                "documento": "factura", "pagina": 1,
+                "fragmento": "[SIMULADO] fragmento no vinculado",
+                "interpretacion": "[SIMULADO] Revisar documentacion.",
+                "limitaciones": "[SIMULADO] Sin modelo real."}]}
         if schema_name == "explicacion":
             return {"explicacion": f"[SIMULADO-{self._id}] Derivación según reglas.",
                     "dudoso": False}

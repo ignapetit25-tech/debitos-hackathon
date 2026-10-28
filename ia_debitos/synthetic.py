@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS casos (
 CREATE TABLE IF NOT EXISTS documentos (
   caso_id TEXT, rol TEXT, archivo TEXT, paginas INTEGER, texto TEXT,
   PRIMARY KEY (caso_id, rol));
+CREATE TABLE IF NOT EXISTS propuesta_hallazgos (
+  propuesta_id TEXT, hallazgo_json TEXT);
 CREATE TABLE IF NOT EXISTS propuestas (
   id TEXT PRIMARY KEY, caso_id TEXT, sector TEXT, puntos INTEGER,
   frases_json TEXT, accion TEXT, explicacion TEXT, referencias_json TEXT,
@@ -203,6 +205,27 @@ class SyntheticStore(CasoStore):
             con.close()
         return [{"rol": r[0], "archivo": r[1], "paginas": r[2], "texto": r[3]}
                 for r in rows]
+
+    def guardar_hallazgos(self, propuesta_id: str, hallazgos: list[dict]) -> None:
+        con = self._con()
+        try:
+            con.execute("DELETE FROM propuesta_hallazgos WHERE propuesta_id=?",
+                        (propuesta_id,))
+            con.executemany("INSERT INTO propuesta_hallazgos VALUES (?,?)",
+                            [(propuesta_id, json.dumps(h, ensure_ascii=False))
+                             for h in hallazgos])
+            con.commit()
+        finally:
+            con.close()
+
+    def hallazgos_propuesta(self, propuesta_id: str) -> list[dict]:
+        con = self._con()
+        try:
+            rows = con.execute("SELECT hallazgo_json FROM propuesta_hallazgos"
+                               " WHERE propuesta_id=?", (propuesta_id,)).fetchall()
+        finally:
+            con.close()
+        return [json.loads(r[0]) for r in rows]
 
     def propuesta(self, pid: str) -> dict | None:
         con = self._con()

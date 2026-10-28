@@ -25,6 +25,7 @@ class Extraccion:
     origen: str  # texto | ocr
     renglones: list[dict] = field(default_factory=list)
     total_txt: str = ""
+    fecha_txt: str = ""
     confianza: float = 1.0
     dudosos: list[str] = field(default_factory=list)
 
@@ -74,6 +75,8 @@ def _ocr_pdf(ruta: str) -> tuple[str, float]:
 
 
 TOTAL_RE = re.compile(r"TOTAL\s+DEBITO\s*:\s*\$?\s*([\d.,]+)", re.IGNORECASE)
+
+FECHA_RE = re.compile(r"FECHA\s+PRESTACION\s*:\s*(\d{4}-\d{2}-\d{2})", re.IGNORECASE)
 
 
 def _parse_bloques(texto: str) -> list[dict]:
@@ -126,4 +129,6 @@ def extraer(ruta: str) -> Extraccion:
     ext.total_txt = mt.group(1).strip() if mt else ""
     if not mt:
         ext.dudosos.append("total no encontrado")
+    mf = FECHA_RE.search(texto)
+    ext.fecha_txt = mf.group(1) if mf else ""
     return ext

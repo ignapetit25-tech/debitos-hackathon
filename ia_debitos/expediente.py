@@ -22,6 +22,7 @@ INSUFICIENTE = "evidencia_insuficiente"
 CLINICO = "clinico_humano"
 
 VIGENCIA_RE = re.compile(r"VIGENCIA\s*:\s*(\d{4}-\d{2}-\d{2})\s*\.\.\s*(\d{4}-\d{2}-\d{2})")
+LIQ_RENGLON_RE = re.compile(r"RENGLON\s+(\d+)\s*:\s*DEBITO\s+\$([\d.,]+)\s*MOTIVO\s*:\s*(.+)")
 ARANCEL_RE = re.compile(r"ARANCEL\s*:\s*(.+?)\s+\$([\d.,]+)")
 
 
@@ -49,6 +50,16 @@ def parse_convenio(texto: str) -> dict:
         except ValueError:
             continue
     return {"vigencia": (m.group(1), m.group(2)) if m else None, "aranceles": aranceles}
+
+
+def parse_liquidacion(texto: str) -> dict:
+    out = {}
+    for mm in LIQ_RENGLON_RE.finditer(texto or ""):
+        try:
+            out[int(mm.group(1))] = (parse_importe("$" + mm.group(2)), mm.group(3).strip())
+        except ValueError:
+            continue
+    return out
 
 
 def valor_convenido(prestacion: str, financiador: str, fecha: str,
@@ -94,6 +105,16 @@ def investigar(store, caso: Caso, arancel_fn) -> dict:
         ok, _ = verificar_hallazgo(h, texto, docs.get(doc, {}).get("paginas", 1))
         hallazgos.append(replace(h, verificado=ok))
 
+    liq = parse_liquidacion(docs.get("liquidacion", {}).get("texto", ""))
+    for r in caso.renglones:
+        if r.nro in liq and liq[r.nro][0] != r.debito_cents:
+            faltantes.append(f"R{r.nro}: liquidacion dice {formato(liq[r.nro][0])}, "
+                             f"factura da {formato(r.debito_cents)}")
+            add(r.nro, INCONSISTENCIA, "liquidacion",
+                f"RENGLON {r.nro}: DEBITO {formato(liq[r.nro][0])}",
+                f"La liquidacion debita {formato(liq[r.nro][0])} pero factura menos "
+                f"liquidado da {formato(r.debito_cents)}.",
+                "Conciliar documentos antes de derivar.")
     ok_sum, dif = caso.validar()
     if not ok_sum:
         faltantes.append(f"sumas inconsistentes: dif {formato(dif)}")
