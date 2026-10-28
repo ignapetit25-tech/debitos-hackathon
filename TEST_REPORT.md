@@ -8,8 +8,13 @@ Ejecutadas (entorno local):
   max_retries 0, error de red sin éxito simulado, solo-chat).
 - Baseten: implementado (`BasetenProvider`, sonda mínima y test de
   aceptación con datos ficticios). Sonda sin clave falla explícito
-  (exit 1, 0 llamadas). Prueba real pendiente de autorización;
-  0 llamadas a Baseten hasta ahora.
+  (exit 1, 0 llamadas).
+- Baseten REAL (autorizado, 2 llamadas totales): sonda mínima OK
+  (953 tokens) + flujo `BASE-1` OK — llamada → propuesta con
+  `Modelo (baseten):` → revisión → aprobación registrada
+  (418/2988 in/out = 3.406 tokens, ID chatcmpl-458d…). Acumulado
+  Baseten: 4.359 tokens. Desarrollo diario sigue en Meta; Baseten
+  queda validado como camino del hackatón.
 - Aislamiento live: `META_LIVE=1` / `BASETEN_LIVE=1` obligatorios
   además de la clave (default omitido). Verificado sin red: 2 tests
   omitidos en 0,1s; con flag pero sin clave, sigue omitido.

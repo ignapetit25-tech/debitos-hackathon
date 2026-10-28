@@ -41,6 +41,10 @@ class TestBasetenLive(unittest.TestCase):
             20000, 5000),), 15000))
         ag = Agente(s, prov)
         prop = ag.proponer("BASE-1")  # 1 llamada real a Baseten
+        m = dict(getattr(prov, "last_call", {}) or {})
+        print(f"\n[baseten-live] modelo={m.get('modelo_devuelto')} "
+              f"resp_id={m.get('respuesta_id')} latencia_ms={m.get('latencia_ms')} "
+              f"uso={m.get('uso')}")
         self.assertIn("Modelo (baseten):", prop.explicacion)
         self.assertNotIn("DEGRADADO", prop.explicacion)
         llamadas = [h for h in s.historial("BASE-1") if h[1] == "llamada_modelo"]
