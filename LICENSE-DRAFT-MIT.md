@@ -1,26 +1,24 @@
-# APROBADA por el autor — ver LICENSE (este archivo queda como registro)
+# APPROVED by the author — see LICENSE (this file stays as record)
 
-Propuesta de licencia MIT para el código ORIGINAL de este repositorio:
+MIT license proposal for this repo's ORIGINAL code:
 
 > Copyright (c) 2026 ignapetit25-tech
 >
-> Se concede permiso, sin cargo, a cualquier persona que obtenga una copia
-> de este software y de los archivos de documentación asociados, para
-> utilizar, copiar, modificar, fusionar, publicar, distribuir,
-> sublicenciar y/o vender copias del software, con la condición de que
-> el aviso de copyright y este permiso aparezcan en todas las copias.
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files, to use, copy, modify,
+> merge, publish, distribute, sublicense and/or sell copies of the software,
+> provided that the copyright notice and this permission appear in all copies.
 
-Qué concede (resumen no legal): uso, copia, modificación y distribución,
-incluso comercial, exigiendo conservar el aviso. Sin garantías.
+What it grants (non-legal summary): use, copy, modification and distribution,
+including commercial, requiring the notice be kept. No warranties.
 
-Notas: MIT **no** es una exigencia verificada del hackatón. Las
-dependencias tienen sus propias licencias (ver DEPENDENCIES.md) y el
-proveedor Meta sus condiciones (https://dev.meta.ai/docs/overview).
-Código de terceros no incluido; nada privado se publica para fingir
-trabajo nuevo.
+Notes: MIT is **not** a verified hackathon requirement. Dependencies
+carry their own licenses (see DEPENDENCIES.md) and the Meta provider
+its terms (https://dev.meta.ai/docs/overview). No third-party code
+included; nothing private is published to fake new work.
 
-## Estado
+## Status
 
-BORRADOR, pendiente de aprobación. No es licencia vigente. El
-repositorio no tiene remoto ni está publicado; no hay fecha de
-publicación hasta autorización explícita.
+DRAFT, pending approval. Not a license in force. The
+repo has no remote and is not published; no publication date
+until explicit authorization.

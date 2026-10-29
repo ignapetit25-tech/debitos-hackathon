@@ -1,4 +1,4 @@
-"""Reinicio seguro de la demo: solo toca demo_data/. Regenera DB + fixtures."""
+"""Safe demo reset: only touches demo_data/. Rebuilds DB + fixtures."""
 from __future__ import annotations
 
 import sqlite3
@@ -8,29 +8,29 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import tools.make_fixtures as gen
-from ia_debitos.contracts import Caso, Renglon
-from ia_debitos.money import parse_importe
-from ia_debitos.synthetic import SyntheticStore
+from debit_ai.contracts import Case, LineItem
+from debit_ai.money import parse_amount
+from debit_ai.synthetic import SyntheticStore
 
 
 def main() -> None:
     root = Path(__file__).resolve().parent.parent
     demo = root / "demo_data"
-    assert demo.resolve().is_relative_to(root.resolve()), "ruta insegura"
+    assert demo.resolve().is_relative_to(root.resolve()), "unsafe path"
     db = demo / "demo.db"
     if db.exists():
         db.unlink()
     gen.main()
     store = SyntheticStore(str(db))
-    for caso in gen.CASOS:
-        rengs = tuple(
-            Renglon(r["nro"], r["practica"], r["motivo"],
-                    parse_importe(r["fact"]), parse_importe(r["liq"]))
-            for r in caso["renglones"]
+    for case in gen.CASES:
+        lines = tuple(
+            LineItem(r["line_no"], r["procedure"], r["reason"],
+                     parse_amount(r["billed"]), parse_amount(r["settled"]))
+            for r in case["lines"]
         )
-        store.seed_caso(Caso(caso["id"], caso["financiador"], caso["factura"],
-                             rengs, parse_importe(caso["total"])))
-    print(f"demo.db regenerada ({len(gen.CASOS)} casos)")
+        store.seed_case(Case(case["id"], case["payer"], case["invoice"],
+                             lines, parse_amount(case["total"])))
+    print(f"demo.db rebuilt ({len(gen.CASES)} cases)")
 
 
 if __name__ == "__main__":

@@ -1,43 +1,43 @@
 import sys, tempfile, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ia_debitos import approvals
-from ia_debitos.agent import Agente
-from ia_debitos.contracts import Caso, Renglon
-from ia_debitos.provider import SimulatedProvider
-from ia_debitos.synthetic import SyntheticStore
+from debit_ai import approvals
+from debit_ai.agent import Agent
+from debit_ai.contracts import Case, LineItem
+from debit_ai.provider import SimulatedProvider
+from debit_ai.synthetic import SyntheticStore
 
 
 class TestHistory(unittest.TestCase):
-    def test_flujo_deja_traza_ordenada(self):
+    def test_flow_leaves_ordered_trace(self):
         s = SyntheticStore(tempfile.mktemp(suffix=".db"))
-        s.seed_caso(Caso("C1", "OS FICTICIA ANDINA", "F-1", (Renglon(
+        s.seed_case(Case("C1", "OS FICTICIA ANDINA", "F-1", (LineItem(
             1, "CONSULTA GENERAL", "supera el valor del convenio",
             20000, 5000),), 15000))
-        ag = Agente(s, SimulatedProvider())
-        prop = ag.proponer("C1")
-        self.assertEqual(prop.sector, "Convenios")
-        approvals.revisar(s, prop.id, "Humano", "aprobada", "ok")
-        tipos = [h[1] for h in s.historial("C1")]
-        self.assertIn("herramienta", tipos)
-        self.assertIn("propuesta", tipos)
-        self.assertIn("revision", tipos)
-        seqs = [h[0] for h in s.historial("C1")]
+        ag = Agent(s, SimulatedProvider())
+        prop = ag.propose("C1")
+        self.assertEqual(prop.team, "Agreements")
+        approvals.review(s, prop.id, "Human", "approved", "ok")
+        kinds = [h[1] for h in s.history("C1")]
+        self.assertIn("tool", kinds)
+        self.assertIn("proposal", kinds)
+        self.assertIn("review", kinds)
+        seqs = [h[0] for h in s.history("C1")]
         self.assertEqual(seqs, sorted(seqs))
 
-    def test_eventos_llevan_fecha_hora(self):
+    def test_events_carry_datetime(self):
         s = SyntheticStore(tempfile.mktemp(suffix=".db"))
-        s.seed_caso(Caso("C2", "OS FICTICIA ANDINA", "F-2", (Renglon(
+        s.seed_case(Case("C2", "OS FICTICIA ANDINA", "F-2", (LineItem(
             1, "CONSULTA GENERAL", "supera el valor del convenio",
             20000, 5000),), 15000))
-        ag = Agente(s, SimulatedProvider())
-        prop = ag.proponer("C2")
-        approvals.revisar(s, prop.id, "Humano", "aprobada", "ok")
-        for h in s.historial("C2"):
+        ag = Agent(s, SimulatedProvider())
+        prop = ag.propose("C2")
+        approvals.review(s, prop.id, "Human", "approved", "ok")
+        for h in s.history("C2"):
             self.assertEqual(len(h), 6)
-            self.assertIn("T", h[5])  # ISO fecha+hora
-        rev = [h for h in s.historial("C2") if h[1] == "revision"][0]
-        self.assertIn("Humano", rev[4])
+            self.assertIn("T", h[5])  # ISO date+time
+        rev = [h for h in s.history("C2") if h[1] == "review"][0]
+        self.assertIn("Human", rev[4])
 
 
 if __name__ == "__main__":

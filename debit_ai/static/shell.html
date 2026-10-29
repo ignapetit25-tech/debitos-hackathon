@@ -1,0 +1,27 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI debit casefile — fictitious data</title>
+<link rel="stylesheet" href="/static/app.css"></head>
+<body data-view="inbox">
+<header><h1>AI debit casefile</h1><p>Inbox · evidence-backed casefile · human review</p></header>
+<div class="banner fict">100% FICTITIOUS DATA — Demo. Nothing here is a real debit.</div>
+<div class="banner meta" id="provider">Configured provider: …</div>
+<nav class="tabs" aria-label="Views">
+<button class="sec" id="tab-inbox">Inbox</button>
+<button class="sec" id="tab-casefile">Casefile</button>
+<button class="sec" id="tab-evidence">Evidence</button>
+</nav>
+<main class="work">
+<section class="pane" id="pane-inbox" aria-label="Case inbox">
+<h2>Case inbox</h2><div id="inbox-status" aria-live="polite"></div>
+<ul class="cases" id="cases" role="listbox" aria-label="Cases"></ul>
+</section>
+<section class="pane" id="pane-file" aria-label="Casefile">
+<h2>Casefile</h2><div id="file-body" aria-live="polite"></div>
+</section>
+<section class="pane" id="pane-evidence" aria-label="Evidence">
+<h2>Evidence</h2><div id="evidence-body" aria-live="polite"></div>
+</section>
+</main>
+<script src="/static/app.js"></script>
+</body></html>

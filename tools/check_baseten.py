@@ -1,13 +1,13 @@
-"""Prueba mínima contra Baseten Model API (datos ficticios).
+"""Minimal check against the Baseten Model API (fictitious data).
 
-Uso (tras ingresar la clave en agent .env):
+Usage (after entering the key in agent .env):
   .venv/bin/python -B tools/check_baseten.py
 
-Imprime SOLO metadatos acotados: proveedor, modelo pedido/devuelto,
-ID de respuesta, estado, latencia, consumo informado y hasta 300
-caracteres de la respuesta. Jamás imprime la clave ni cuerpos de
-error. Timeout explícito, sin reintentos. Falla explícito: nunca
-simula una integración exitosa.
+Prints ONLY bounded metadata: provider, requested/returned model,
+response ID, status, latency, reported usage and up to 300
+characters of the response. Never prints the key or error
+bodies. Explicit timeout, no retries. Fails explicitly: never
+fakes a successful integration.
 """
 from __future__ import annotations
 
@@ -19,48 +19,48 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
-from check_meta import cargar_env_repo  # noqa: E402
+from check_meta import load_repo_env  # noqa: E402
 
-from ia_debitos.agent import EXPLICACION_SCHEMA  # noqa: E402
-from ia_debitos.provider import ProviderError, build_provider  # noqa: E402
+from debit_ai.agent import EXPLANATION_SCHEMA  # noqa: E402
+from debit_ai.provider import ProviderError, build_provider  # noqa: E402
 
 
 def main() -> int:
-    env_info = cargar_env_repo()
-    os.environ["IA_PROVIDER"] = "baseten"  # forzado: prohibido simular aquí
+    env_info = load_repo_env()
+    os.environ["IA_PROVIDER"] = "baseten"  # forced: simulating forbidden here
     try:
         prov = build_provider()
     except ProviderError as exc:
         print(f"env={env_info}")
-        print(f"FALLO explicito (sin clave o sin SDK): {exc}")
+        print(f"Explicit FAIL (no key or no SDK): {exc}")
         return 1
-    assert prov.name == "baseten", f"proveedor inesperado: {prov.name}"
+    assert prov.name == "baseten", f"unexpected provider: {prov.name}"
     prompt = (
-        "Dato FICTICIO de prueba. Devolvé explicación de una línea "
-        "para: BASE: Derivación a Convenios por reglas (10 pts: convenio). "
-        "CASO: Financiador Ficticio Demo F-0001, 1 renglón."
+        "FICTITIOUS test datum. Return a one-line explanation "
+        "for: BASE: Routing to Agreements per rules (10 pts: agreement). "
+        "CASE: Demo Fictitious Payer F-0001, 1 line."
     )
     t0 = time.monotonic()
     try:
-        out = prov.complete_structured(prompt, EXPLICACION_SCHEMA, "explicacion")
+        out = prov.complete_structured(prompt, EXPLANATION_SCHEMA, "explanation")
     except ProviderError as exc:
-        print(f"FALLO explicito de Baseten (mensaje corto, sin cuerpos): {exc}")
+        print(f"Explicit Baseten FAIL (short message, no bodies): {exc}")
         return 1
     ms = int((time.monotonic() - t0) * 1000)
-    txt = out.get("explicacion", "")
-    if "SIMULADO" in txt:
-        print("FALLO: respuesta con marca de simulador, no es Baseten real")
+    txt = out.get("explanation", "")
+    if "SIMULATED" in txt:
+        print("FAIL: response carries simulator tag, not real Baseten")
         return 1
     m = dict(getattr(prov, "last_call", {}) or {})
     print(f"env={env_info}")
-    print(f"proveedor={m.get('proveedor')} estado={m.get('estado')}")
-    print(f"modelo_pedido={m.get('modelo_pedido')}")
-    print(f"modelo_devuelto={m.get('modelo_devuelto')}")
-    print(f"respuesta_id={m.get('respuesta_id')}")
-    print(f"protocolo={m.get('protocolo')} latencia_ms={ms} esquema=OK")
-    print(f"uso={m.get('uso')} dudoso={out.get('dudoso')}")
-    print(f"explicacion={txt[:300]}")
-    print("clave_en_uso=SI (valor jamás impreso)")
+    print(f"provider={m.get('provider')} status={m.get('status')}")
+    print(f"requested_model={m.get('requested_model')}")
+    print(f"returned_model={m.get('returned_model')}")
+    print(f"response_id={m.get('response_id')}")
+    print(f"protocol={m.get('protocol')} latency_ms={ms} schema=OK")
+    print(f"usage={m.get('usage')} uncertain={out.get('uncertain')}")
+    print(f"explanation={txt[:300]}")
+    print("key_in_use=YES (value never printed)")
     return 0
 
 

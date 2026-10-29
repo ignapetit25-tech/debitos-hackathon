@@ -4,25 +4,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 class TestIsolation(unittest.TestCase):
-    def test_sin_imports_privados(self):
+    def test_no_private_imports(self):
         root = Path(__file__).resolve().parent.parent
-        for py in list((root / "ia_debitos").glob("*.py")) + list((root / "tools").glob("*.py")):
+        for py in list((root / "debit_ai").glob("*.py")) + list((root / "tools").glob("*.py")):
             txt = py.read_text(encoding="utf-8")
             self.assertNotIn("pmc_validator", txt, py.name)
             self.assertNotIn("from sistema", txt, py.name)
             self.assertNotIn("import sistema", txt, py.name)
 
-    def test_nombres_sinteticos(self):
-        from ia_debitos.synthetic import FINANCIADORES
-        for f in FINANCIADORES:
+    def test_synthetic_names(self):
+        from debit_ai.synthetic import PAYERS
+        for f in PAYERS:
             self.assertIn("FICTICI", f)
 
-    def test_adaptador_desactivado(self):
+    def test_adapter_disabled(self):
         import os
         os.environ.pop("IA_DEMO_MODE", None)
-        import importlib, ia_debitos.adapter_real as ar
+        import importlib, debit_ai.real_adapter as ar
         importlib.reload(ar)
-        self.assertFalse(ar.ACTIVO)
+        self.assertFalse(ar.ACTIVE)
 
 
 if __name__ == "__main__":

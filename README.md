@@ -1,130 +1,138 @@
-# Capa IA de débitos (hackatón)
+# Debit AI layer (hackathon)
 
-Capa de IA independiente sobre un sistema preexistente de gestión de
-débitos de financiadores de salud. Demo autónoma con datos 100%
-ficticios.
+Independent AI layer over a pre-existing debit-management system for
+health payers. Standalone demo with 100% fictitious data.
 
-Idea declarada elegible por Adam Blumenfeld (Cerebral Valley) en el hilo del proyecto, 27/10/2026: https://discord.com/channels/1557169028080869426/1564401698259337216/1564670797908410389 — Alcance: gestión administrativa de débitos, sin juicio clínico, datos ficticios, aprobación humana. Valoró el conocimiento directo del problema y la posibilidad real de implementación. No resolvió por separado código preexistente ni modelos aceptados (se siguen las FAQs oficiales). No es certificación de seguridad/cumplimiento ni aprobación de ampliaciones futuras.
+Idea declared eligible by Adam Blumenfeld (Cerebral Valley) in the project thread, 10/27/2026: https://discord.com/channels/1557169028080869426/1564401698259337216/1564670797908410389 — Scope: administrative debit management, no clinical judgment, fictitious data, human approval. He valued the direct knowledge of the problem and the real chance of implementation. He did not rule separately on pre-existing code or accepted models (the official FAQs apply). Not a security/compliance certification nor an approval of future extensions.
 
-## Origen
+## Origin
 
-El proyecto nace de la experiencia de su creador como responsable del sector Débitos de un policlínico argentino, donde gestiona diariamente deducciones de obras sociales, prepagas y ART. Busca reducir el trabajo manual de lectura, conciliación, derivación y seguimiento, manteniendo las decisiones finales en personas.
+I run the debit department of an Argentine outpatient clinic, where I
+deal every day with deductions from obras sociales, prepagas, and ART.
+I designed this project to cut the manual work of reading, reconciling,
+routing, and following up, while keeping final decisions with people.
 
-## Qué hace
+Glossary (Argentine domain terms kept in Spanish on purpose):
+- obra social: union-run health fund.
+- prepaga: private health insurer.
+- ART: workers' compensation insurer.
 
-Expediente ficticio (factura + liquidación + convenio) → extracción y
-conciliación determinista → hallazgos verificables → aporte de Meta
-con citas comprobadas por código → propuesta → borrador → revisión
-humana obligatoria → historial auditable. UI en 3 áreas: bandeja,
-expediente, evidencia.
+## What it does
 
-Límites duros (en contratos, no en carteles): la IA no evalúa medicina,
-no recibe historias clínicas, no envía correos, no acepta/rechaza
-débitos. "Auditoría Médica" es un sector humano de destino.
+Fictitious casefile (invoice + settlement + agreement) → deterministic
+extraction and reconciliation → verifiable findings → Meta input
+with code-checked citations → proposal → draft → mandatory human
+review → auditable history. UI in 3 areas: inbox,
+casefile, evidence.
 
-## Qué hace cada etapa (implementación real)
+Hard limits (in contracts, not on posters): the AI does not assess
+medicine, receives no clinical records, sends no emails, does not
+accept/reject debits. "Medical Audit" is a human destination team.
 
-- Extracción (`extract.py`): texto vía pypdf u OCR español vía
-  tesseract; confianza por documento. Determinista, sin modelo.
-- Cálculos (`money.py`, `validar`): sumas en centavos enteros.
-  Determinista, sin modelo.
-- Reglas (`rules.py` + aranceles): puntaje y sector por frases.
-  Determinista, sin modelo.
-- Convenios (`synthetic.py` gestor): versiones por financiador con
-  vigencia y tabla de aranceles (ficticios); el valor aplicable se
-  elige por fecha de prestación y los solapes se advierten.
-- Proceso (`proceso.py`): prioridad P1/P2/P3 por monto, SLA 5 días
-  hábiles desde la revisión, checklist pre-derivación y devolución
-  del sector (decisión, recuperable/aceptado, responsable, fecha).
-- Aporte de Meta (`provider.py` + `agent.py`): devuelve hallazgos
-  estructurados (documento, página, fragmento, interpretación,
-  limitaciones). El código descarta tipos inválidos y verifica cada
-  cita contra el documento; lo no verificable se marca CITA NO
-  VERIFICADA. El modelo no calcula, no decide el sector y no inventa
-  confianza numérica.
-- Borradores (`drafts.py`): plantillas deterministas con datos del
-  caso. Propuestas, no envíos.
+## What each stage does (real implementation)
 
-## Tres decisiones distintas
+- Extraction (`extract.py`): text via pypdf or Spanish OCR via
+  tesseract; per-document confidence. Deterministic, no model.
+- Math (`money.py`, `validate`): sums in whole cents.
+  Deterministic, no model.
+- Rules (`rules.py` + rates): score and team by phrases.
+  Deterministic, no model.
+- Agreements (`synthetic.py` manager): per-payer versions with
+  validity and rate tables (fictitious); the applicable value is
+  picked by service date and overlaps raise a warning.
+- Process (`process.py`): P1/P2/P3 priority by amount, 5-business-day
+  SLA from review, pre-routing checklist and team reply
+  (decision, recoverable/accepted, owner, date).
+- Meta input (`provider.py` + `agent.py`): returns structured
+  findings (document, page, excerpt, interpretation,
+  limitations). The code drops invalid kinds and checks each
+  citation against the document; the unverifiable is tagged
+  CITATION UNVERIFIED. The model does no math, picks no team, and
+  invents no numeric confidence.
+- Drafts (`drafts.py`): deterministic templates with case data.
+  Proposals, not sendings.
 
-Aprobar una propuesta (aceptar la derivación sugerida) NO es aceptar
-un débito (darle conformidad económica) NI autorizar una comunicación
-(enviar algo a alguien). La demo solo registra la primera: no envía
-mensajes ni modifica sistemas externos.
+## Three distinct decisions
 
-## Instalación
+Approving a proposal (accepting the suggested routing) is NOT
+accepting a debit (agreeing to its economics) NOR authorizing a
+message (sending something to someone). The demo only records the
+first: it sends no messages and changes no external systems.
+
+## Install
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-# Sistema: tesseract-ocr + datos spa + poppler-utils (pdftotext/pdftoppm)
-# Si spa no está en el sistema:
+# System: tesseract-ocr + spa data + poppler-utils (pdftotext/pdftoppm)
+# If spa is missing from the system:
 #   curl -o ~/.local/share/tessdata/spa.traineddata <tessdata spa>
 #   export TESSDATA_PREFIX=~/.local/share/tessdata
-cp .env.example .env   # completar MODEL_API_KEY para Meta real
+cp .env.example .env   # fill in MODEL_API_KEY for real Meta
 ```
 
-## Ejecución
+## Run
 
 ```bash
-.venv/bin/python -B tools/reset_demo.py          # regenera base + PDFs
-IA_PROVIDER=simulated .venv/bin/python -B -m ia_debitos.demo_app
-# abrir http://127.0.0.1:8931/
+.venv/bin/python -B tools/reset_demo.py          # rebuilds base + PDFs
+IA_PROVIDER=simulated .venv/bin/python -B -m debit_ai.demo_app
+# open http://127.0.0.1:8931/
 ```
 
-Con clave Meta: `MODEL_API_KEY=... .venv/bin/python -B -m ia_debitos.demo_app`.
-Todo se reproduce sin acceso al sistema original: este repo no lo importa, no lo llama y no conoce sus rutas (ver PRIOR_WORK.md).
-Sin clave y sin `IA_PROVIDER=simulated`, la demo se niega a arrancar
-(error explícito, jamás fallback silencioso).
+With a Meta key: `MODEL_API_KEY=... .venv/bin/python -B -m debit_ai.demo_app`.
+Everything reproduces without access to the original system: this repo
+neither imports, calls, nor knows its paths (see PRIOR_WORK.md).
+Without a key and without `IA_PROVIDER=simulated`, the demo refuses
+to start (explicit error, never silent fallback).
 
-## Pruebas y evaluación
+## Tests and evaluation
 
 ```bash
 .venv/bin/python -B -m unittest discover -s tests
-TESSDATA_PREFIX=~/.local/share/tessdata .venv/bin/python -B evals/eval_sintetica.py
+TESSDATA_PREFIX=~/.local/share/tessdata .venv/bin/python -B evals/eval_synthetic.py
 ```
 
-## Limitaciones honestas
+## Honest limitations
 
-- Integración Meta: sonda mínima y test de aceptación OK con
-  `muse-spark-1.3` (Responses), datos ficticios, clave en `.env` local
-  fuera de Git. Recorrido demo operado por un agente OK; falta la
-  revisión personal del usuario (casos pendientes en la demo).
-  Ejecuciones `simulated` siguen sin demostrar funcionamiento con Meta.
-- Adaptador real (JSON): implementado, desactivado por defecto, NO verificado.
-- Ejecuciones `simulated` no demuestran funcionamiento con Meta.
-- OCR probado solo sobre fixtures generados con ruido controlado.
+- Meta integration: minimal probe and acceptance test OK with
+  `muse-spark-1.3` (Responses), fictitious data, key in local `.env`
+  outside Git. Agent-operated demo walkthrough OK; the user's
+  personal review is missing (cases pending in the demo).
+  `simulated` runs still prove nothing about Meta.
+- Real adapter (JSON): implemented, off by default, UNVERIFIED.
+- `simulated` runs prove nothing about Meta.
+- OCR tested only on fixtures built with controlled noise.
 
 ## Baseten (hackathon)
 
-Proveedor `baseten` (OpenAI-compatible, solo Chat Completions):
-base `https://inference.baseten.co/v1`, modelo exacto
-`meta-models/muse-spark-open-1026`. Timeout explícito
-(`BASETEN_TIMEOUT`, default 60s), sin reintentos. El proveedor Meta
-de Pi (`muse-spark-1.3`) no se modificó.
+`baseten` provider (OpenAI-compatible, Chat Completions only):
+base `https://inference.baseten.co/v1`, exact model
+`meta-models/muse-spark-open-1026`. Explicit timeout
+(`BASETEN_TIMEOUT`, default 60s), no retries. The Pi Meta
+provider (`muse-spark-1.3`) was not modified.
 
-Ingresar la clave (lo hace el operador, nunca en el chat):
-1. Abrir con un editor `debitos-hackathon/.env` (ignorado por Git).
-2. Agregar la línea `BASETEN_API_KEY=...` con la clave del hackathon.
-3. Guardar; verificar solo presencia con
-   `grep -c '^BASETEN_API_KEY=.' .env` (imprime 1, no el valor).
+Enter the key (the operator does it, never in chat):
+1. Open `debitos-hackathon/.env` with an editor (Git-ignored).
+2. Add the line `BASETEN_API_KEY=...` with the hackathon key.
+3. Save; check presence only with
+   `grep -c '^BASETEN_API_KEY=.' .env` (prints 1, not the value).
 
-Primera prueba real (solo con autorización, consume créditos):
-`.venv/bin/python -B tools/check_baseten.py` — exactamente 1 llamada,
-salida acotada, timeout 60s, sin reintentos; muestra metadatos y
-consumo informado, jamás la clave. Luego el flujo completo:
+First real test (only with authorization, spends credits):
+`.venv/bin/python -B tools/check_baseten.py` — exactly 1 call,
+bounded output, 60s timeout, no retries; shows metadata and
+reported usage, never the key. Then the full flow:
 `BASETEN_LIVE=1 .venv/bin/python -B -m unittest tests.test_baseten_live`.
 
-Aislamiento: ningún test live corre por el solo hecho de existir una
-clave. Meta exige `META_LIVE=1` y Baseten `BASETEN_LIVE=1`, ambos
-desactivados por defecto; sin el flag, la suite omite sin red.
+Isolation: no live test runs just because a key exists.
+Meta requires `META_LIVE=1` and Baseten `BASETEN_LIVE=1`, both
+off by default; without the flag, the suite skips with no network.
 
-Estado: sonda + flujo verificados con llamadas reales autorizadas;
-demo corriendo en Baseten (`IA_PROVIDER=baseten`). Meta (`muse-spark-1.3`)
-queda como respaldo validado. Cada "pedir propuesta" en la demo consume
-créditos del hackatón.
+Status: probe + flow verified with authorized real calls;
+demo running on Baseten (`IA_PROVIDER=baseten`). Meta (`muse-spark-1.3`)
+stays as validated backup. Each "request proposal" in the demo spends
+hackathon credits.
 
-## Estado de licencia y publicación
+## License and publication status
 
-- Licencia MIT vigente (ver LICENSE; registro previo en LICENSE-DRAFT-MIT.md).
-- Sin remoto configurado, sin publicar, sin cambios de visibilidad.
-- Elegibilidad: Idea declarada elegible por Adam Blumenfeld (Cerebral Valley) en el hilo del proyecto, 27/10/2026: https://discord.com/channels/1557169028080869426/1564401698259337216/1564670797908410389 — Alcance: gestión administrativa de débitos, sin juicio clínico, datos ficticios, aprobación humana. Valoró el conocimiento directo del problema y la posibilidad real de implementación. No resolvió por separado código preexistente ni modelos aceptados (se siguen las FAQs oficiales). No es certificación de seguridad/cumplimiento ni aprobación de ampliaciones futuras.
+- MIT license in force (see LICENSE; prior record in LICENSE-DRAFT-MIT.md).
+- No remote configured, not published, no visibility changes.
+- Eligibility: Idea declared eligible by Adam Blumenfeld (Cerebral Valley) in the project thread, 10/27/2026: https://discord.com/channels/1557169028080869426/1564401698259337216/1564670797908410389 — Scope: administrative debit management, no clinical judgment, fictitious data, human approval. He valued the direct knowledge of the problem and the real chance of implementation. He did not rule separately on pre-existing code or accepted models (the official FAQs apply). Not a security/compliance certification nor an approval of future extensions.

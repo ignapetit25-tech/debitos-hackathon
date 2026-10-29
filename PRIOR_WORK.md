@@ -1,22 +1,22 @@
-# Trabajo previo vs trabajo nuevo
+# Prior work vs new work
 
-Preexistente (repositorio privado preexistente, main `0ac2c4c`, revisión
-externa): aplicación web de débitos, motor de reglas propio, SQLite
-productiva, derivación, historial, evaluaciones, borradores. ~9.600 líneas.
+Pre-existing (pre-existing private repo, main `0ac2c4c`, external
+review): debit web app, own rules engine, production SQLite,
+routing, history, evaluations, drafts. ~9,600 lines.
 
-Nuevo en este repositorio (hackatón), escrito desde cero:
-- Contratos de integración, núcleo IA, reglas sintéticas mínimas.
-- Cliente Meta Muse Spark + proveedor simulado explícito.
-- Extracción PDF/OCR, agente, aprobaciones, borradores, demo web.
-- Generador de fixtures ficticios, reinicio seguro, evaluación, tests.
-- Toda la documentación de este repo.
+New in this repo (hackathon), written from scratch:
+- Integration contracts, AI core, minimal synthetic rules.
+- Meta Muse Spark client + explicit simulated provider.
+- PDF/OCR extraction, agent, approvals, drafts, web demo.
+- Fictitious fixture generator, safe reset, evaluation, tests.
+- All documentation in this repo.
 
-Separación verificable: ningún `.py` de aquí importa `pmc_validator` ni
-`sistema` (test_isolation); sin submódulos; sin historial copiado;
-datos demo generados, jamás reales. Conceptos de dominio reutilizados
-(derivación por puntaje/umbral, trazabilidad) sin copiar código.
+Verifiable separation: no `.py` here imports `pmc_validator` or
+`sistema` (test_isolation); no submodules; no copied history;
+demo data generated, never real. Domain concepts reused
+(score/threshold routing, traceability) without copying code.
 
-Reproducción sin el sistema original: clonar SOLO este repo, crear
-venv, `pip install -r requirements.txt`, `tools/reset_demo.py` y
-levantar la demo. Ningún paso lee, importa o llama al sistema
-preexistente; los PDFs y la base se generan aquí.
+Reproduction without the original system: clone ONLY this repo, create
+a venv, `pip install -r requirements.txt`, `tools/reset_demo.py` and
+start the demo. No step reads, imports, or calls the pre-existing
+system; the PDFs and the base are generated here.

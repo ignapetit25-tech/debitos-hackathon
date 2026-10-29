@@ -1,29 +1,29 @@
 import sys, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ia_debitos import rules
+from debit_ai import rules
 
 
 class TestRules(unittest.TestCase):
-    def test_convenios(self):
-        r = rules.evaluar("supera el valor del convenio")
-        self.assertEqual((r.sector, r.puntos), ("Convenios", 4))
+    def test_agreements(self):
+        r = rules.evaluate("supera el valor del convenio")
+        self.assertEqual((r.team, r.points), ("Agreements", 4))
 
-    def test_umbral(self):
-        r = rules.evaluar("verificar con sector")
-        self.assertEqual(r.sector, rules.PENDIENTE)
+    def test_threshold(self):
+        r = rules.evaluate("verificar con sector")
+        self.assertEqual(r.team, rules.PENDING)
 
-    def test_clinico(self):
-        self.assertTrue(rules.es_clinico("criterio medico dudoso"))
-        self.assertFalse(rules.es_clinico("valor del convenio"))
+    def test_clinical(self):
+        self.assertTrue(rules.is_clinical("criterio medico dudoso"))
+        self.assertFalse(rules.is_clinical("valor del convenio"))
 
-    def test_puntaje_no_es_confianza(self):
-        from ia_debitos.contracts import Propuesta, ReglaRef
-        p = Propuesta("P1", "C1", "Convenios", ReglaRef("Convenios", 7, ("x",)),
-                      "reclamar", "e", ("r",), False, 0.92)
-        self.assertIsInstance(p.regla.puntos, int)
-        self.assertIsInstance(p.extraccion_confianza, float)
-        self.assertNotEqual(p.regla.puntos, p.extraccion_confianza)
+    def test_score_is_not_confidence(self):
+        from debit_ai.contracts import Proposal, RuleRef
+        p = Proposal("P1", "C1", "Agreements", RuleRef("Agreements", 7, ("x",)),
+                     "claim", "e", ("r",), False, 0.92)
+        self.assertIsInstance(p.rule.points, int)
+        self.assertIsInstance(p.extraction_confidence, float)
+        self.assertNotEqual(p.rule.points, p.extraction_confidence)
 
 
 if __name__ == "__main__":

@@ -1,35 +1,35 @@
-# Arquitectura
+# Architecture
 
 ```
-PDF ficticio -> extract.py -> money.py -> CasoStore ----+
-   (pypdf / tesseract spa)   (centavos int)             |
-                                                       v
-contratos.py <-- synthetic.py <-- agent.py --> provider.py
-   (ABCs)        (simulador)    (orquesta)     (meta | simulated)
+Fictitious PDF -> extract.py -> money.py -> CaseStore ----+
+   (pypdf / tesseract spa)   (int cents)                 |
+                                                         v
+contracts.py <-- synthetic.py <-- agent.py --> provider.py
+   (ABCs)        (simulator)    (orchestrates)  (meta | simulated)
                      |              |
                      v              v
                approvals.py    drafts.py
-               (humano obliga) (plantillas)
+               (human required) (templates)
                      |
-              adapter_real.py (JSON, OFF, no verificado)
+              real_adapter.py (JSON, OFF, unverified)
 ```
 
-- `contracts.py`: Caso/Renglon/Propuesta/Decision/Historial + ABCs
-  (obtener_caso, consultar_arancel, evaluar_reglas, guardar_propuesta,
-  obtener_estado_casos). Dinero siempre int centavos.
-- `provider.py`: interfaz + `MetaProvider` (paquete openai contra
-  api.meta.ai, Responses text.format / Chat response_format, clave
-  explícita) + `SimulatedProvider` etiquetado.
-- `agent.py`: arma el expediente, pide hallazgos al modelo, los valida
-  y persiste; la explicación cita lo verificado (ver README).
-- `expediente.py`: conciliación determinista factura/liquidación/convenio,
-  verificación de citas normalizada, mapeo a 4 tipos de hallazgo.
-- `demo_app.py` + `static/`: API JSON + UI en 3 áreas (shell.html,
-  app.css, app.js separados). Sin innerHTML: todo contenido documental
-  se renderiza como texto. Documentos = dato delimitado, nunca instrucción.
-  Disparador clínico -> `derivar_humano` sin recomendar acción económica.
-- `drafts.py`: plantillas deterministas; el modelo no redacta borradores.
-- `proceso.py`: prioridad, SLA hábil, checklist y validación de
-  devolución. `approvals.seguimiento`: persiste respuesta del sector.
-- Fronteras: puntaje de reglas (int) y confianza de extracción (float)
-  son campos distintos; propuestas y decisiones son registros separados.
+- `contracts.py`: Case/LineItem/Proposal/Decision/History + ABCs
+  (get_case, get_rate, evaluate_rules, save_proposal,
+  list_cases). Money always int cents.
+- `provider.py`: interface + `MetaProvider` (openai package against
+  api.meta.ai, Responses text.format / Chat response_format, explicit
+  key) + tagged `SimulatedProvider`.
+- `agent.py`: builds the casefile, asks the model for findings, validates
+  and persists them; the explanation cites the verified (see README).
+- `casefile.py`: deterministic invoice/settlement/agreement reconciliation,
+  normalized citation checks, mapping to 4 finding kinds.
+- `demo_app.py` + `static/`: JSON API + 3-area UI (shell.html,
+  app.css, app.js separated). No innerHTML: all document content
+  renders as text. Documents = delimited data, never instruction.
+  Clinical trigger -> `route_human` with no economic recommendation.
+- `drafts.py`: deterministic templates; the model writes no drafts.
+- `process.py`: priority, business-day SLA, checklist and reply
+  validation. `approvals.followup`: persists the team response.
+- Boundaries: rule score (int) and extraction confidence (float)
+  are distinct fields; proposals and decisions are separate records.

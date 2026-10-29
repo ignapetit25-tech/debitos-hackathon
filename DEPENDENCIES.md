@@ -1,13 +1,13 @@
-# Dependencias y condiciones
+# Dependencies and terms
 
-Python (requirements.txt): `openai` (cliente HTTP hacia api.meta.ai),
-`pypdf` (lectura PDF), `reportlab` (generación de fixtures), `pillow`
-(imágenes para PDF escaneados). Verificar licencias instaladas con
-`pip show <paquete>` antes de distribuir.
+Python (requirements.txt): `openai` (HTTP client toward api.meta.ai),
+`pypdf` (PDF reading), `reportlab` (fixture generation), `pillow`
+(images for scanned PDFs). Check installed licenses with
+`pip show <package>` before distributing.
 
-Sistema: `tesseract-ocr` + datos `spa`, `poppler-utils`
-(pdftotext/pdftoppm). No incluidos; el README explica instalación.
+System: `tesseract-ocr` + `spa` data, `poppler-utils`
+(pdftotext/pdftoppm). Not included; the README explains install.
 
-Proveedor: Meta Model API, https://dev.meta.ai/docs/overview
-(modelo muse-spark-1.3). Uso sujeto a sus términos y facturación.
-Credencial MODEL_API_KEY del operador; jamás se registra ni se commitea.
+Provider: Meta Model API, https://dev.meta.ai/docs/overview
+(model muse-spark-1.3). Use subject to its terms and billing.
+Operator's MODEL_API_KEY credential; never logged or committed.
