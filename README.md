@@ -125,6 +125,6 @@ créditos del hackatón.
 
 ## Estado de licencia y publicación
 
-- Licencia MIT: BORRADOR pendiente de aprobación (ver LICENSE-DRAFT-MIT.md).
+- Licencia MIT vigente (ver LICENSE; registro previo en LICENSE-DRAFT-MIT.md).
 - Sin remoto configurado, sin publicar, sin cambios de visibilidad.
 - Elegibilidad: Idea declarada elegible por Adam Blumenfeld (Cerebral Valley) en el hilo del proyecto, 27/10/2026: https://discord.com/channels/1557169028080869426/1564401698259337216/1564670797908410389 — Alcance: gestión administrativa de débitos, sin juicio clínico, datos ficticios, aprobación humana. Valoró el conocimiento directo del problema y la posibilidad real de implementación. No resolvió por separado código preexistente ni modelos aceptados (se siguen las FAQs oficiales). No es certificación de seguridad/cumplimiento ni aprobación de ampliaciones futuras.

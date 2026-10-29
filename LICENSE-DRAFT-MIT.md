@@ -1,4 +1,4 @@
-# BORRADOR — pendiente de aprobación, NO es licencia vigente
+# APROBADA por el autor — ver LICENSE (este archivo queda como registro)
 
 Propuesta de licencia MIT para el código ORIGINAL de este repositorio:
 
