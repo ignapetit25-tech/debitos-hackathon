@@ -1,6 +1,6 @@
 # Trabajo previo vs trabajo nuevo
 
-Preexistente (repo privado `pmc-tools-web`, main `0ac2c4c`, revisión
+Preexistente (repositorio privado preexistente, main `0ac2c4c`, revisión
 externa): aplicación web de débitos, motor de reglas propio, SQLite
 productiva, derivación, historial, evaluaciones, borradores. ~9.600 líneas.
 

@@ -103,7 +103,7 @@ base `https://inference.baseten.co/v1`, modelo exacto
 de Pi (`muse-spark-1.3`) no se modificó.
 
 Ingresar la clave (lo hace el operador, nunca en el chat):
-1. Abrir con un editor `pmc-debitos-ia/.env` (ignorado por Git).
+1. Abrir con un editor `debitos-hackathon/.env` (ignorado por Git).
 2. Agregar la línea `BASETEN_API_KEY=...` con la clave del hackathon.
 3. Guardar; verificar solo presencia con
    `grep -c '^BASETEN_API_KEY=.' .env` (imprime 1, no el valor).
