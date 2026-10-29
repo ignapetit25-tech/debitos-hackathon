@@ -15,6 +15,9 @@ Ejecutadas (entorno local):
   (418/2988 in/out = 3.406 tokens, ID chatcmpl-458d…). Acumulado
   Baseten: 4.359 tokens. Desarrollo diario sigue en Meta; Baseten
   queda validado como camino del hackatón.
+- Demo conmutada a Baseten (reinicio con `IA_PROVIDER=baseten`, 0
+  llamadas nuevas): historiales y propuestas Meta conservados
+  (`P-EXP-900-1` intacta).
 - Aislamiento live: `META_LIVE=1` / `BASETEN_LIVE=1` obligatorios
   además de la clave (default omitido). Verificado sin red: 2 tests
   omitidos en 0,1s; con flag pero sin clave, sigue omitido.

@@ -118,8 +118,10 @@ Aislamiento: ningún test live corre por el solo hecho de existir una
 clave. Meta exige `META_LIVE=1` y Baseten `BASETEN_LIVE=1`, ambos
 desactivados por defecto; sin el flag, la suite omite sin red.
 
-Estado: implementado y verificado sin red; prueba real pendiente
-de autorización.
+Estado: sonda + flujo verificados con llamadas reales autorizadas;
+demo corriendo en Baseten (`IA_PROVIDER=baseten`). Meta (`muse-spark-1.3`)
+queda como respaldo validado. Cada "pedir propuesta" en la demo consume
+créditos del hackatón.
 
 ## Estado de licencia y publicación
 

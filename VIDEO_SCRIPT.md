@@ -22,7 +22,7 @@ Aclaración inicial (textual):
 3. Conciliación: $16.500 + $42.000 = $58.500, dif 0 (centavos
    enteros); valores convenidos vigentes a la prestación.
 4. Propuesta: Convenios/reclamar respaldada por hallazgos.
-5. Aporte de Meta: 10 hallazgos con citas comprobadas por código
+5. Aporte de Baseten (muse-spark-open): hallazgos con citas comprobadas por código
    (qué se verificó y qué quedó marcado no verificado).
 6. Borrador de reclamo: plantilla con datos verificables.
 7. Revisión personal en la interfaz: aprobar la propuesta no acepta
@@ -42,5 +42,5 @@ Aclaración inicial (textual):
 - La posibilidad de implementación futura es parte del valor del
   proyecto. La capa IA NO está desplegada en el policlínico ni sus
   beneficios fueron medidos en producción.
-- Separación: métricas deterministas, llamadas reales a Meta y
+- Separación: métricas deterministas, llamadas reales al proveedor y
   revisión humana van por separado (TEST_REPORT.md).

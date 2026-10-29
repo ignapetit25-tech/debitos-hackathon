@@ -8,10 +8,10 @@ del sector Débitos de un policlínico argentino.
 (factura, liquidación, convenio). Tabla: facturado, liquidado,
 diferencia y valor convenido vigente a la prestación.
 [0:50] Hallazgos deterministas + faltantes + siguiente paso. Pedir
-propuesta: 10 hallazgos de Meta con citas comprobadas por código
+propuesta: 10 hallazgos de Baseten (muse-spark-open) con citas comprobadas por código
 (8 OK, 2 marcadas no verificadas).
 [1:20] Evidencia: clic en un hallazgo → fragmento, documento, página,
-interpretación y limitaciones. Detalles Meta en desplegable.
+interpretación y limitaciones. Detalles Baseten en desplegable.
 Borrador: plantilla, propuesta, no envío.
 [1:50] Revisión: aprobar la propuesta NO acepta el débito NI autoriza
 comunicaciones; la demo no envía mensajes ni toca sistemas externos.
