@@ -209,6 +209,12 @@ function renderPropCard(n) {
   bp.addEventListener("click", pedir);
   row.appendChild(bp);
   d.appendChild(row);
+  const ya = S.hist.filter(h => h[1] === "revision" && (h[4] || "").indexOf(S.prop) >= 0).pop();
+  if (ya) {
+    d.appendChild(el("p", null, "✔ Ya decidida: " + ya[4] + " · " + (ya[5] || "")));
+    d.appendChild(el("p", "muted", ya[2] || ""));
+    n.appendChild(d);
+  } else {
   d.appendChild(el("p", "muted", "Aprobar = aceptar la propuesta de derivación. No acepta el débito ni autoriza comunicaciones: la demo no envía mensajes ni modifica sistemas externos."));
   const rn = el("input", null, null);
   rn.id = "r-nom"; rn.placeholder = "Tu nombre (revisor)";
@@ -236,12 +242,15 @@ function renderPropCard(n) {
   out.id = "rev-out";
   out.setAttribute("aria-live", "polite");
   d.appendChild(out);
+  }
   const bb = el("button", "sec", "Ver borrador");
   bb.addEventListener("click", verBorrador);
   d.appendChild(bb);
-  const bp2 = el("pre", "doc", S.borrador || "—");
-  bp2.id = "borr";
-  d.appendChild(bp2);
+  if (S.borrador) {
+    const bp2 = el("pre", "doc", S.borrador);
+    bp2.id = "borr";
+    d.appendChild(bp2);
+  }
   n.appendChild(d);
   const sg = el("div", "card", null);
   sg.appendChild(el("h3", null, "Devolución del sector (seguimiento)"));
@@ -448,6 +457,19 @@ function renderEvi() {
   n.appendChild(det);
   n.appendChild(el("h3", null, "Historial"));
   if (!S.hist.length) { n.appendChild(el("p", "muted", "Sin eventos.")); return; }
+  const evtLast = S.hist[S.hist.length - 1];
+  n.appendChild(el("p", "muted", S.hist.length + " eventos · último: " +
+    evtLast[1] + " " + (evtLast[5] || "")));
+  const ICON = {propuesta: "✓", revision: "✔", seguimiento: "↩", llamada_modelo: "◈"};
+  S.hist.filter(h => ICON[h[1]]).forEach(h => {
+    const d = el("p", null, null);
+    d.appendChild(el("strong", null, ICON[h[1]] + " " + h[1] + " "));
+    d.appendChild(el("span", "muted", (h[5] || "") + " · "));
+    d.appendChild(el("span", null, (h[4] || h[2] || "").slice(0, 110)));
+    n.appendChild(d);
+  });
+  const det2 = el("details", "meta", null);
+  det2.appendChild(el("summary", null, "Registro técnico completo (" + S.hist.length + ")"));
   const tb = el("table", null, null);
   const hr = el("tr", null, null);
   ["#", "fecha/hora", "tipo", "detalle", "antes", "después"].forEach(h =>
@@ -459,7 +481,8 @@ function renderEvi() {
       tr.appendChild(el("td", null, String(v))));
     tb.appendChild(tr);
   });
-  n.appendChild(scrollWrap(tb));
+  det2.appendChild(scrollWrap(tb));
+  n.appendChild(det2);
 }
 
 /* ---------- init ---------- */
@@ -477,7 +500,7 @@ async function init() {
     S.prov = p.proveedor;
     const e = $("prov");
     e.textContent = "Proveedor configurado: " + p.proveedor +
-      (p.simulado ? " — SIMULADO (no demuestra Meta)" : " — Meta real");
+      (p.simulado ? " — SIMULADO (no demuestra el proveedor)" : " — " + p.proveedor + " real");
     e.className = "banner " + (p.simulado ? "sim" : "meta");
     const c = await call("GET", "/api/casos");
     S.casos = c.casos;
