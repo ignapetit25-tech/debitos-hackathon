@@ -18,6 +18,12 @@ Ejecutadas (entorno local):
 - Demo conmutada a Baseten (reinicio con `IA_PROVIDER=baseten`, 0
   llamadas nuevas): historiales y propuestas Meta conservados
   (`P-EXP-900-1` intacta).
+- `P-EXP-900-2` en Baseten (1 llamada autorizada): Convenios/reclamar,
+  sumas OK, 7 hallazgos persistidos con 7/7 citas verificadas
+  (752/7942 in/out = 8.694 tokens, ID chatcmpl-4ccd…). Acumulado
+  Baseten: 13.053 tokens en 3 llamadas. Desde aquí, gasto congelado:
+  el resto (revisiones, capturas, video, docs, UI) usa artefactos
+  existentes con 0 llamadas.
 - Aislamiento live: `META_LIVE=1` / `BASETEN_LIVE=1` obligatorios
   además de la clave (default omitido). Verificado sin red: 2 tests
   omitidos en 0,1s; con flag pero sin clave, sigue omitido.
