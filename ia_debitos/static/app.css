@@ -14,12 +14,14 @@ header p{margin:.15em 0 0;font-size:.85em;opacity:.9}
 .tabs{display:none;gap:.5em;margin:.7em 1.2em 0}
 .tabs button{flex:1}
 .work{display:grid;grid-template-columns:300px minmax(0,1fr) minmax(0,1fr);gap:.8em;padding:.8em 1.2em 3em;align-items:start}
-.pane{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.9em 1em;min-width:0}
+.pane{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.9em 1em;min-width:0;box-shadow:0 1px 3px rgba(17,24,39,.08)}
 .pane h2{margin:.1em 0 .6em;font-size:.82em;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
 .card{border:1px solid var(--line);border-radius:8px;padding:.7em .8em;margin:.6em 0;background:#fff}
 .card.decision{border-left:5px solid var(--acc)}
 .card.next{border-left:5px solid var(--ok);background:#f0fdf4}
 button{background:var(--acc);color:var(--acc-ink);border:0;border-radius:6px;padding:.5em .9em;cursor:pointer;font-size:.9em}
+button:hover:not(:disabled){filter:brightness(1.12)}
+ul.casos li:hover{border-color:var(--acc)}
 button.sec{background:#4b5563}button.ok{background:var(--ok)}button.no{background:var(--bad)}
 button:disabled{opacity:.45;cursor:default}
 input,select,textarea{font-size:.9em;padding:.45em;border:1px solid var(--line);border-radius:6px;width:100%;font:inherit}
@@ -35,7 +37,11 @@ ul.casos .imp{font-variant-numeric:tabular-nums;text-align:right;font-weight:600
 .badge.warn{background:var(--warn-bg);color:var(--warn)}
 .badge.bad{background:var(--bad-bg);color:var(--bad)}
 .badge.info{background:var(--info-bg);color:var(--acc)}
+.scroll-x{overflow-x:auto;margin:.4em 0}
+.scroll-x table{margin:0;width:max-content;min-width:100%}
 table{border-collapse:collapse;width:100%;font-size:.85em;margin:.4em 0}
+table th{white-space:nowrap}
+table td{min-width:64px}
 th,td{border:1px solid var(--line);padding:.35em .5em;text-align:left;vertical-align:top;overflow-wrap:anywhere}
 th{background:#eef1f6}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}

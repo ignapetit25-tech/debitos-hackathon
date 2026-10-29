@@ -11,6 +11,11 @@ function el(tag, cls, text) {
   return e;
 }
 function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+function scrollWrap(tb) {
+  const d = el("div", "scroll-x", null);
+  d.appendChild(tb);
+  return d;
+}
 function status(n, kind, msg) {
   clear(n);
   n.appendChild(el("div", "status " + kind, msg));
@@ -126,7 +131,7 @@ function renderExp() {
       tr.appendChild(td);
       tc.appendChild(tr);
     });
-    n.appendChild(tc);
+    n.appendChild(scrollWrap(tc));
     n.appendChild(el("h3", null, "Convenios de " + c.financiador));
     if (!S.conv.length) n.appendChild(el("p", "muted", "Sin convenios cargados."));
     S.conv.forEach(cv => {
@@ -153,7 +158,7 @@ function renderExp() {
     tr.appendChild(el("td", null, r.fuente_ref));
     tb.appendChild(tr);
   });
-  n.appendChild(tb);
+  n.appendChild(scrollWrap(tb));
   n.appendChild(badge(e.sumas_ok, false, "sumas OK", "SUMAS INCONSISTENTES"));
   const h3 = el("h3", null, "Hallazgos deterministas");
   n.appendChild(h3);
@@ -434,7 +439,7 @@ function renderEvi() {
     n.appendChild(d);
   }
   const det = el("details", "meta", null);
-  det.appendChild(el("summary", null, "Detalles técnicos de Meta"));
+  det.appendChild(el("summary", null, "Detalles técnicos (" + (S.prov || "?") + ")"));
   const last = S.hist.filter(h => h[1] === "llamada_modelo").pop();
   det.appendChild(el("p", null, "Proveedor configurado: " + (S.prov || "?")));
   det.appendChild(el("p", null, last ? ("Última llamada: " + last[2] + " → " + last[4]) :
@@ -454,7 +459,7 @@ function renderEvi() {
       tr.appendChild(el("td", null, String(v))));
     tb.appendChild(tr);
   });
-  n.appendChild(tb);
+  n.appendChild(scrollWrap(tb));
 }
 
 /* ---------- init ---------- */
