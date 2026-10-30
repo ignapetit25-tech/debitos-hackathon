@@ -27,10 +27,48 @@ def review(store: SyntheticStore, proposal_id: str, reviewer: str,
     return dec
 
 
+def has_approved_review(store: SyntheticStore, proposal_id: str) -> bool:
+    """True when a human approved this proposal (history is the record)."""
+    prop = store.get_proposal(proposal_id)
+    if not prop:
+        return False
+    for h in store.history(prop["case_id"]):
+        if h[1] == "review" and (h[4] or "").startswith(
+                f"proposal {proposal_id} approved"):
+            return True
+    return False
+
+
+def _check_decision_amounts(decision: str, recoverable: int,
+                            accepted: int) -> None:
+    if decision == "pending":
+        if recoverable or accepted:
+            raise ValueError("pending reply must carry zero amounts")
+    elif decision == "recovered":
+        if recoverable <= 0 or accepted:
+            raise ValueError("recovered reply needs pursued>0 and accepted 0")
+    elif decision == "accepted":
+        if accepted <= 0 or recoverable:
+            raise ValueError("accepted reply needs accepted>0 and pursued 0")
+    elif decision == "partial":
+        if recoverable <= 0 or accepted <= 0:
+            raise ValueError("partial reply needs both amounts > 0")
+
+
 def followup(store: SyntheticStore, proposal_id: str, decision: str,
              recoverable_cents: int, accepted_cents: int,
              owner: str, date: str = "", note: str = "") -> dict:
-    """Team reply: response with amounts, owner and date."""
+    """Team reply: response with amounts, owner and date.
+
+    Invariants (whole cents):
+    - amounts are ints >= 0 and their sum never exceeds the case debit;
+    - decision and amounts cohere (pending 0/0, recovered pursued>0,
+      accepted accepted>0, partial both>0);
+    - the proposal must carry an approved human review first.
+    Corrections overwrite the stored reply, but history keeps
+    before/after on every save. No accounting state is invented:
+    decision=recovered asserts the pursued amount WAS recovered.
+    """
     from datetime import date as _date
     if decision not in FOLLOWUP_DECISIONS:
         raise ValueError(f"invalid decision: {decision}")
@@ -47,11 +85,22 @@ def followup(store: SyntheticStore, proposal_id: str, decision: str,
     prop = store.get_proposal(proposal_id)
     if not prop:
         raise KeyError(f"proposal not found: {proposal_id}")
+    total = store.get_case(prop["case_id"]).total_debit_cents
+    if recoverable_cents + accepted_cents > total:
+        raise ValueError(
+            f"amounts exceed case debit {total}")
+    _check_decision_amounts(decision, recoverable_cents, accepted_cents)
+    if not has_approved_review(store, proposal_id):
+        raise ValueError("proposal needs an approved review before a team reply")
+    prev = store.get_followup(proposal_id)
+    before = ("no reply" if prev is None else
+              f"{prev['decision']}: recoverable {prev['recoverable_cents']} "
+              f"accepted {prev['accepted_cents']}")
     store.save_followup(proposal_id, decision, recoverable_cents,
                         accepted_cents, owner.strip(), date,
                         note.strip())
     store.log(prop["case_id"], "followup",
               f"{decision}: recoverable {recoverable_cents} accepted {accepted_cents}",
-              before="routing without reply",
+              before=before,
               after=f"reply {prop['team']} by {owner.strip()}")
     return store.get_followup(proposal_id)

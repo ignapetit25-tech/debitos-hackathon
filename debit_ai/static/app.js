@@ -77,7 +77,7 @@ async function selectCase(id) {
   if (S.busy) return;
   S.case = null; S.file = null; S.props = []; S.prop = null; S.modelH = []; S.hist = [];
   S.selF = -1; S.name = ""; S.note = ""; S.draft = null; S.reviewMsg = "";
-  S.proc = null; S.agree = []; S.fol = null;
+  S.proc = null; S.agree = []; S.fol = null; S.approved = false;
   renderInbox();
   status($("file-body"), "loading", "Loading casefile…");
   status($("evidence-body"), "loading", "Loading evidence…");
@@ -298,8 +298,10 @@ function renderProposal(n) {
     nt.setAttribute("aria-label", "Follow-up note");
     nt.value = S.fol ? (S.fol.note || "") : "";
     sg.appendChild(nt);
+    if (!S.approved)
+      sg.appendChild(el("p", "muted", "Needs an approved review first."));
     const bs = el("button", "sec", "Save reply");
-    bs.disabled = S.busy;
+    bs.disabled = S.busy || !S.approved;
     bs.addEventListener("click", saveFollowup);
     sg.appendChild(bs);
     const so = el("div", null, null);
@@ -315,6 +317,7 @@ async function selectProp(pid, silent) {
   S.modelH = [];
   S.draft = null;
   S.fol = null;
+  S.approved = false;
   S.reviewMsg = "";
   if (!pid) { if (!silent) { renderFile(); renderEvidence(); } return; }
   try {
@@ -322,12 +325,13 @@ async function selectProp(pid, silent) {
     S.modelH = j.findings;
     const g = await call("GET", "/api/followup?proposal_id=" + encodeURIComponent(pid));
     S.fol = g.followup;
+    S.approved = !!g.approved;
   } catch (e) { S.modelH = []; S.fol = null; }
   if (!silent) { renderFile(); renderEvidence(); }
 }
 
 async function saveFollowup() {
-  if (S.busy || !S.prop) return;
+  if (S.busy || !S.prop || !S.approved) return;
   const rec = parseMoney($("fo-rec").value);
   const ace = parseMoney($("fo-acc").value);
   const resp = $("fo-owner").value.trim();
@@ -394,6 +398,9 @@ async function decide(v) {
       verdict: v, note: nota});
     const hj = await call("GET", "/api/history?case_id=" + encodeURIComponent(S.case.id));
     S.hist = hj.history;
+    const g = await call("GET", "/api/followup?proposal_id=" + encodeURIComponent(S.prop));
+    S.fol = g.followup;
+    S.approved = !!g.approved;
     S.busy = false;
     S.reviewMsg = "✓ " + j.decision.verdict.toUpperCase() + " by " +
       j.decision.reviewer + " — " + S.prop + " recorded in history.";
@@ -452,7 +459,9 @@ function renderEvidence() {
   }
   const det = el("details", "meta", null);
   det.appendChild(el("summary", null, "Technical details (" + (S.provider || "?") + ")"));
-  const last = S.hist.filter(h => h[1] === "model_call").pop();
+  const calls = S.hist.filter(h => h[1] === "model_call");
+  const last = calls.filter(h => (h[2] || "").includes("proposal=" + S.prop)).pop()
+    || calls.pop();  // legacy events carry no proposal id
   det.appendChild(el("p", null, "Configured provider: " + (S.provider || "?")));
   det.appendChild(el("p", null, last ? ("Last call: " + last[2] + " → " + last[4]) :
     "No model calls on this case."));

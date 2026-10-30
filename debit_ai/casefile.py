@@ -30,14 +30,19 @@ def normalize_citation(text: str) -> str:
     return " ".join(rules.normalize(text or "").split())
 
 
-def verify_finding(h: Finding, doc_text: str, doc_pages: int) -> tuple[bool, str]:
-    if h.page < 1 or h.page > doc_pages:
-        return False, f"page {h.page} missing (doc has {doc_pages})"
+def verify_finding(h: Finding, page_texts: list) -> tuple[bool, str]:
+    """Textual match on the INDICATED page only.
+
+    Verified means: the page exists and the excerpt matches it
+    (normalized). It does NOT validate the interpretation.
+    """
+    if h.page < 1 or h.page > len(page_texts):
+        return False, f"page {h.page} missing (doc has {len(page_texts)})"
     frag = normalize_citation(h.excerpt)
     if len(frag) < 12:
         return False, "excerpt too short to verify"
-    if frag not in normalize_citation(doc_text):
-        return False, "excerpt not found in the document"
+    if frag not in normalize_citation(page_texts[h.page - 1] or ""):
+        return False, f"excerpt not found on page {h.page}"
     return True, "reference exists and citation matches"
 
 
@@ -103,9 +108,12 @@ def investigate(store, case: Case, rate_fn) -> dict:
         nonlocal nh
         nh += 1
         h = Finding(_hid(case.id, line_no, nh), case.id, line_no, kind, doc, 1, excerpt, interpretation, lim)
-        text = docs.get(doc, {}).get("text", "") if doc != "invoice" else (
-            inv_txt or " ".join(r.reason for r in case.lines))
-        ok, _ = verify_finding(h, text, docs.get(doc, {}).get("pages", 1))
+        if doc != "invoice":
+            pages = docs.get(doc, {}).get("page_texts", []) or [
+                docs.get(doc, {}).get("text", "")]
+        else:
+            pages = [inv_txt or " ".join(r.reason for r in case.lines)]
+        ok, _ = verify_finding(h, pages)
         findings.append(replace(h, verified=ok))
 
     liq = parse_settlement(docs.get("settlement", {}).get("text", ""))

@@ -32,10 +32,15 @@ class TestProcess(unittest.TestCase):
         self.assertEqual(chk["Sums"]["state"], "ok")
         self.assertEqual(chk["Copays"]["value"], "identified")
 
-    def test_followup_ok_and_errors(self):
+    def _approved(self, cid="P1"):
         s = SyntheticStore(tempfile.mktemp(suffix=".db"))
-        s.seed_case(case())
-        prop = Agent(s, SimulatedProvider()).propose("P1")
+        s.seed_case(case(cid))
+        prop = Agent(s, SimulatedProvider()).propose(cid)
+        approvals.review(s, prop.id, "auto-test", "approved", "ok")
+        return s, prop
+
+    def test_followup_ok_and_errors(self):
+        s, prop = self._approved()
         d = approvals.followup(s, prop.id, "partial", 1000000, 500000,
                                "R. Agreements", "2026-10-28", "ok")
         self.assertEqual(d["decision"], "partial")
@@ -50,6 +55,50 @@ class TestProcess(unittest.TestCase):
             approvals.followup(s, prop.id, "partial", 0, 0, "  ", "2026-10-28")
         with self.assertRaises(KeyError):
             approvals.followup(s, "P-X-99", "partial", 0, 0, "R", "2026-10-28")
+
+    def test_followup_needs_approved_review(self):
+        s = SyntheticStore(tempfile.mktemp(suffix=".db"))
+        s.seed_case(case())
+        prop = Agent(s, SimulatedProvider()).propose("P1")
+        with self.assertRaisesRegex(ValueError, "approved review"):
+            approvals.followup(s, prop.id, "pending", 0, 0, "R", "2026-10-28")
+        approvals.review(s, prop.id, "auto-test", "rejected", "no")
+        with self.assertRaisesRegex(ValueError, "approved review"):
+            approvals.followup(s, prop.id, "pending", 0, 0, "R", "2026-10-28")
+        approvals.review(s, prop.id, "auto-test", "approved", "yes")
+        d = approvals.followup(s, prop.id, "pending", 0, 0, "R", "2026-10-28")
+        self.assertEqual(d["decision"], "pending")
+
+    def test_followup_amount_scope(self):
+        # Case debit is 1500000 cents.
+        s, prop = self._approved()
+        with self.assertRaisesRegex(ValueError, "exceed case debit"):
+            approvals.followup(s, prop.id, "partial", 1000000, 600000,
+                               "R", "2026-10-28")
+        with self.assertRaisesRegex(ValueError, "pending.*zero"):
+            approvals.followup(s, prop.id, "pending", 1, 0, "R", "2026-10-28")
+        with self.assertRaisesRegex(ValueError, "recovered"):
+            approvals.followup(s, prop.id, "recovered", 1000000, 500000,
+                               "R", "2026-10-28")
+        with self.assertRaisesRegex(ValueError, "accepted"):
+            approvals.followup(s, prop.id, "accepted", 100, 500, "R", "2026-10-28")
+        with self.assertRaisesRegex(ValueError, "partial"):
+            approvals.followup(s, prop.id, "partial", 1000000, 0, "R", "2026-10-28")
+        d = approvals.followup(s, prop.id, "recovered", 1500000, 0,
+                               "R", "2026-10-28")
+        self.assertEqual(d["recoverable_cents"], 1500000)
+
+    def test_followup_correction_keeps_before_after(self):
+        s, prop = self._approved()
+        approvals.followup(s, prop.id, "partial", 1000000, 500000,
+                           "R", "2026-10-28", "first")
+        approvals.followup(s, prop.id, "recovered", 1500000, 0,
+                           "R", "2026-10-29", "fixed")
+        evs = [h for h in s.history("P1") if h[1] == "followup"]
+        self.assertEqual(len(evs), 2)
+        self.assertEqual(evs[0][3], "no reply")
+        self.assertIn("partial: recoverable 1000000", evs[1][3])
+        self.assertEqual(s.get_followup(prop.id)["decision"], "recovered")
 
     def test_manager_overlap_and_seed(self):
         s = SyntheticStore(tempfile.mktemp(suffix=".db"))

@@ -46,9 +46,9 @@ AGREEMENT = [
 ]
 
 
-def pdf_text(path: Path) -> str:
+def pdf_pages(path: Path) -> list[str]:
     from pypdf import PdfReader
-    return "\n".join((p.extract_text() or "") for p in PdfReader(str(path)).pages)
+    return [(p.extract_text() or "") for p in PdfReader(str(path)).pages]
 
 
 def build_casefile(store, gen_dir) -> "Case":
@@ -77,7 +77,9 @@ def build_casefile(store, gen_dir) -> "Case":
     assert case.validate() == (True, 0)
     store.seed_case(case)
     for role, path in (("invoice", pf), ("settlement", pl), ("agreement", pc)):
-        store.add_document(case.id, role, path.name, 1, pdf_text(path))
+        texts = pdf_pages(path)
+        store.add_document(case.id, role, path.name, len(texts),
+                           "\n".join(texts), texts)
     print(f"case {case.id}: 3 documents, debit {total} cents, sums OK")
     return case
 

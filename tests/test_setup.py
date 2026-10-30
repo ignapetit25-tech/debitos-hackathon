@@ -64,3 +64,20 @@ class TestPrepare(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestMigration(unittest.TestCase):
+    def test_old_documents_table_gains_pages(self):
+        import sqlite3
+        db = Path(tempfile.mkdtemp()) / "old.db"
+        con = sqlite3.connect(str(db))
+        con.execute("CREATE TABLE documents (case_id TEXT, role TEXT,"
+                    " filename TEXT, pages INTEGER, text TEXT,"
+                    " PRIMARY KEY (case_id, role))")
+        con.execute("INSERT INTO documents VALUES (?,?,?,?,?)",
+                    ("C1", "agreement", "c.pdf", 1, "SOME RATE TEXT HERE"))
+        con.commit()
+        con.close()
+        s = SyntheticStore(str(db))
+        docs = s.documents("C1")
+        self.assertEqual(docs[0]["page_texts"], ["SOME RATE TEXT HERE"])

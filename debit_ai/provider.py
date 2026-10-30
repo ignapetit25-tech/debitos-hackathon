@@ -261,7 +261,7 @@ class SimulatedProvider(Provider):
             return {"explanation": f"[SIMULATED-{self._id}] Routing per rules.",
                     "uncertain": False}
         if schema_name == "draft":
-            return {"title": "[SIMULATED] Claim draft",
+            return {"title": "[SIMULATED] Draft",
                     "body": "[SIMULATED] Sample text for human review."}
         if schema_name == "query":
             return {"response": "[SIMULATED] Status summary.", "cases": []}

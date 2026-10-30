@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS cases (
   service_date TEXT DEFAULT '');
 CREATE TABLE IF NOT EXISTS documents (
   case_id TEXT, role TEXT, filename TEXT, pages INTEGER, text TEXT,
+  pages_json TEXT DEFAULT '',
   PRIMARY KEY (case_id, role));
 CREATE TABLE IF NOT EXISTS proposal_findings (
   proposal_id TEXT, finding_json TEXT);
@@ -46,6 +47,11 @@ CREATE TABLE IF NOT EXISTS history (
 """
 
 
+def _proposal_key(pid: str) -> tuple:
+    pre, _, num = pid.rpartition("-")
+    return (pre, int(num) if num.isdigit() else -1, pid)
+
+
 class SyntheticStore(CaseStore):
     def __init__(self, db_path: str | None = None) -> None:
         self.db_path = db_path or os.environ.get("IA_DEMO_DB", DB_DEFAULT)
@@ -53,6 +59,18 @@ class SyntheticStore(CaseStore):
         con = sqlite3.connect(self.db_path)
         try:
             con.executescript(SCHEMA)
+            cols = [r[1] for r in
+                    con.execute("PRAGMA table_info(documents)").fetchall()]
+            if "pages_json" not in cols:
+                con.execute("ALTER TABLE documents "
+                            "ADD COLUMN pages_json TEXT DEFAULT ''")
+                for cid, role, text in con.execute(
+                        "SELECT case_id, role, text FROM documents"):
+                    con.execute("UPDATE documents SET pages_json=? "
+                                "WHERE case_id=? AND role=?",
+                                (json.dumps([text or ""]), cid, role))
+                con.execute("UPDATE documents SET pages_json=? "
+                            "WHERE pages_json IS NULL", (json.dumps([""]),))
             con.commit()
             seed_agreements(self)
         finally:
@@ -125,11 +143,11 @@ class SyntheticStore(CaseStore):
     def list_proposals(self, case_id: str) -> list[str]:
         con = self._con()
         try:
-            rows = con.execute("SELECT id FROM proposals WHERE case_id=? ORDER BY id",
+            rows = con.execute("SELECT id FROM proposals WHERE case_id=?",
                                (case_id,)).fetchall()
         finally:
             con.close()
-        return [r[0] for r in rows]
+        return sorted((r[0] for r in rows), key=_proposal_key)
 
     def save_proposal(self, case_id: str, proposal: Proposal) -> None:
         _ = self.get_case(case_id)
@@ -174,11 +192,15 @@ class SyntheticStore(CaseStore):
         return rows
 
     def add_document(self, case_id: str, role: str, filename: str,
-                     pages: int, text: str) -> None:
+                     pages: int, text: str,
+                     page_texts: list | None = None) -> None:
+        if page_texts is None:
+            page_texts = [text or ""] if pages == 1 else [""] * max(pages, 0)
         con = self._con()
         try:
-            con.execute("INSERT OR REPLACE INTO documents VALUES (?,?,?,?,?)",
-                        (case_id, role, filename, pages, text))
+            con.execute("INSERT OR REPLACE INTO documents VALUES (?,?,?,?,?,?)",
+                        (case_id, role, filename, pages, text,
+                         json.dumps(list(page_texts), ensure_ascii=False)))
             con.commit()
         finally:
             con.close()
@@ -186,12 +208,20 @@ class SyntheticStore(CaseStore):
     def documents(self, case_id: str) -> list[dict]:
         con = self._con()
         try:
-            rows = con.execute("SELECT role, filename, pages, text FROM documents"
-                               " WHERE case_id=? ORDER BY role", (case_id,)).fetchall()
+            rows = con.execute("SELECT role, filename, pages, text, pages_json"
+                               " FROM documents WHERE case_id=? ORDER BY role",
+                               (case_id,)).fetchall()
         finally:
             con.close()
-        return [{"role": r[0], "filename": r[1], "pages": r[2], "text": r[3]}
-                for r in rows]
+        out = []
+        for r in rows:
+            try:
+                pts = json.loads(r[4]) if r[4] else [r[3] or ""]
+            except (ValueError, TypeError):
+                pts = [r[3] or ""]
+            out.append({"role": r[0], "filename": r[1], "pages": r[2],
+                        "text": r[3], "page_texts": pts})
+        return out
 
     def save_findings(self, proposal_id: str, findings: list[dict]) -> None:
         con = self._con()

@@ -161,7 +161,9 @@ class Handler(BaseHTTPRequestHandler):
                             "due": process.add_business_days(since) if since else None}})
             elif url.path == "/api/followup":
                 pid = parse_qs(url.query).get("proposal_id", [""])[0]
-                _json(self, 200, {"followup": self.store.get_followup(pid)})
+                _json(self, 200, {"followup": self.store.get_followup(pid),
+                                  "approved": approvals.has_approved_review(
+                                      self.store, pid)})
             elif url.path == "/api/findings":
                 pid = parse_qs(url.query).get("proposal_id", [""])[0]
                 if not self.store.get_proposal(pid):
@@ -203,8 +205,10 @@ class Handler(BaseHTTPRequestHandler):
                     _json(self, 404, {"error": "proposal not found"})
                     return
                 case = self.store.get_case(prop["case_id"])
-                _json(self, 200, drafts.claim_draft(case, prop["team"],
-                                                   prop["explanation"][:300]))
+                inv = self.agent.investigate(case.id)
+                _json(self, 200, drafts.build_draft(
+                    case, prop["team"], prop["action"],
+                    prop["explanation"][:300], tuple(inv["missing"])))
             else:
                 _json(self, 404, {"error": "unknown route"})
         except Exception as exc:
