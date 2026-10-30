@@ -1,7 +1,7 @@
 """SYNTHETIC implementation of the contracts (stand-in for prior services).
 
 Cases/proposals/history live in the demo SQLite (demo_data/demo.db,
-git-ignored, rebuildable with tools/reset_demo.py). Rates and rules are
+git-ignored, rebuildable with tools/prepare_demo.py). Rates and rules are
 in memory. ALL fictitious: payers, people, invoices and values.
 """
 from __future__ import annotations

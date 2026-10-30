@@ -51,8 +51,10 @@ def pdf_text(path: Path) -> str:
     return "\n".join((p.extract_text() or "") for p in PdfReader(str(path)).pages)
 
 
-def main() -> None:
-    gen = ROOT / "demo_data" / "generated"
+def build_casefile(store, gen_dir) -> "Case":
+    """Build EXP-900 + 3 PDFs into `store`, PDFs under `gen_dir`."""
+    from pathlib import Path as _P
+    gen = _P(gen_dir)
     gen.mkdir(parents=True, exist_ok=True)
     lines = pdf_lines(CASE)
     lines.insert(3, f"FECHA PRESTACION: {DATE}")
@@ -73,11 +75,15 @@ def main() -> None:
     case = Case(CASE["id"], CASE["payer"], CASE["invoice"], lines, total,
                 "new", ext.date_raw)
     assert case.validate() == (True, 0)
-    s = SyntheticStore()
-    s.seed_case(case)
+    store.seed_case(case)
     for role, path in (("invoice", pf), ("settlement", pl), ("agreement", pc)):
-        s.add_document(case.id, role, path.name, 1, pdf_text(path))
+        store.add_document(case.id, role, path.name, 1, pdf_text(path))
     print(f"case {case.id}: 3 documents, debit {total} cents, sums OK")
+    return case
+
+
+def main() -> None:
+    build_casefile(SyntheticStore(), ROOT / "demo_data" / "generated")
 
 
 if __name__ == "__main__":

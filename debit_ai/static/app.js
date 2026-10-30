@@ -76,7 +76,7 @@ function renderInbox() {
 async function selectCase(id) {
   if (S.busy) return;
   S.case = null; S.file = null; S.props = []; S.prop = null; S.modelH = []; S.hist = [];
-  S.selF = -1; S.name = ""; S.note = ""; S.draft = null;
+  S.selF = -1; S.name = ""; S.note = ""; S.draft = null; S.reviewMsg = "";
   S.proc = null; S.agree = []; S.fol = null;
   renderInbox();
   status($("file-body"), "loading", "Loading casefile…");
@@ -209,6 +209,10 @@ function renderProposal(n) {
   bp.addEventListener("click", requestProposal);
   row.appendChild(bp);
   d.appendChild(row);
+  const out = el("div", null, S.reviewMsg || "");
+  out.id = "review-out";
+  out.setAttribute("aria-live", "polite");
+  d.appendChild(out);
   const ya = S.hist.filter(h => h[1] === "review" && (h[4] || "").indexOf(S.prop) >= 0).pop();
   if (ya) {
     d.appendChild(el("p", null, "✔ Already decided: " + ya[4] + " · " + (ya[5] || "")));
@@ -238,10 +242,6 @@ function renderProposal(n) {
   r2.appendChild(ba); r2.appendChild(br);
   d.appendChild(r2);
   d.appendChild(el("p", "muted", S.prop ? ("You review exactly: " + S.prop) : "No proposal selected."));
-  const out = el("div", null, null);
-  out.id = "review-out";
-  out.setAttribute("aria-live", "polite");
-  d.appendChild(out);
   }
   const bb = el("button", "sec", "View draft");
   bb.addEventListener("click", viewDraft);
@@ -315,6 +315,7 @@ async function selectProp(pid, silent) {
   S.modelH = [];
   S.draft = null;
   S.fol = null;
+  S.reviewMsg = "";
   if (!pid) { if (!silent) { renderFile(); renderEvidence(); } return; }
   try {
     const j = await call("GET", "/api/findings?proposal_id=" + encodeURIComponent(pid));
@@ -380,25 +381,27 @@ async function viewDraft() {
 
 async function decide(v) {
   if (S.busy || !S.prop) return;
-  const nom = ($("r-name").value || "").trim();
-  const nota = ($("r-note").value || "").trim();
-  if (!nom) { $("review-out").textContent = "Type your name as reviewer."; return; }
-  S.name = $("r-name").value; S.note = $("r-note").value;
+  const nameEl = $("r-name"), noteEl = $("r-note");
+  if (!nameEl || !noteEl) return;  // form not rendered (already decided)
+  const nom = (nameEl.value || "").trim();
+  const nota = (noteEl.value || "").trim();
+  if (!nom) { S.reviewMsg = "Type your name as reviewer."; renderFile(); return; }
+  S.name = nameEl.value; S.note = noteEl.value;
   S.busy = true;
-  renderFile();
+  renderFile();  // disables buttons: no accidental double submit
   try {
     const j = await call("POST", "/api/review", {proposal_id: S.prop, reviewer: nom,
       verdict: v, note: nota});
     const hj = await call("GET", "/api/history?case_id=" + encodeURIComponent(S.case.id));
     S.hist = hj.history;
     S.busy = false;
-    renderFile(); renderEvidence();
-    $("review-out").textContent = "✓ " + j.decision.verdict.toUpperCase() + " by " +
+    S.reviewMsg = "✓ " + j.decision.verdict.toUpperCase() + " by " +
       j.decision.reviewer + " — " + S.prop + " recorded in history.";
+    renderFile(); renderEvidence();
   } catch (e) {
     S.busy = false;
+    S.reviewMsg = "✕ Error recording: " + e.message;
     renderFile();
-    $("review-out").textContent = "✕ Error recording: " + e.message;
   }
 }
 

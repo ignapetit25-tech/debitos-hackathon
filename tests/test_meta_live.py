@@ -53,12 +53,12 @@ class TestMetaLive(unittest.TestCase):
         self.assertNotIn("response_id=-", det)  # a real response ID exists
         self.assertIn("ok: model text used", after)
         # 2. human review + recorded approval
-        dec = approvals.review(s, prop.id, "reviewer-milestone", "approved",
+        dec = approvals.review(s, prop.id, "auto-test-live", "approved",
                                "Meta acceptance")
         self.assertEqual(dec.verdict, "approved")
         revs = [h for h in s.history("META-1") if h[1] == "review"]
         self.assertEqual(len(revs), 1)
-        self.assertIn("reviewer-milestone", revs[0][4])
+        self.assertIn("auto-test-live", revs[0][4])
 
 
 if __name__ == "__main__":

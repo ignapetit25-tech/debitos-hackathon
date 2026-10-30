@@ -240,7 +240,30 @@ class Handler(BaseHTTPRequestHandler):
             _json(self, 500, {"error": f"{type(exc).__name__}"})
 
 
+def load_dotenv(path=None) -> int:
+    """Load KEY=VALUE lines from a .env file (setdefault semantics).
+
+    Returns the number of variables set. Never prints values: callers
+    must only report the count. Missing file -> 0, no error.
+    """
+    target = Path(path) if path else Path(__file__).resolve().parent.parent / ".env"
+    if not target.exists():
+        return 0
+    n = 0
+    for line in target.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        key = key.strip()
+        if key and key not in os.environ:
+            os.environ[key] = val.strip().strip("'\"")
+            n += 1
+    return n
+
+
 def main() -> None:
+    load_dotenv()  # repo .env (if present); explicit env always wins
     try:
         provider = build_provider()
     except ProviderError as exc:

@@ -54,12 +54,12 @@ class TestBasetenLive(unittest.TestCase):
         self.assertIn("status=ok", det)
         self.assertNotIn("response_id=-", det)
         self.assertIn("ok: model text used", after)
-        dec = approvals.review(s, prop.id, "reviewer-milestone", "approved",
+        dec = approvals.review(s, prop.id, "auto-test-live", "approved",
                                "Baseten acceptance")
         self.assertEqual(dec.verdict, "approved")
         revs = [h for h in s.history("BASE-1") if h[1] == "review"]
         self.assertEqual(len(revs), 1)
-        self.assertIn("reviewer-milestone", revs[0][4])
+        self.assertIn("auto-test-live", revs[0][4])
 
 
 if __name__ == "__main__":

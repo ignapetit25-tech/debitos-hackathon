@@ -18,7 +18,7 @@ class TestApprovals(unittest.TestCase):
     def test_approve_and_reject(self):
         for v in ("approved", "rejected"):
             s = _store()
-            d = approvals.review(s, "P1", "Human", v, "ok")
+            d = approvals.review(s, "P1", "auto-test", v, "ok")
             self.assertEqual(d.verdict, v)
             hist = s.history("C1")
             self.assertTrue(any(h[1] == "review" for h in hist))
@@ -29,9 +29,9 @@ class TestApprovals(unittest.TestCase):
         with self.assertRaises(ValueError):
             approvals.review(_store(), "P1", "  ", "approved")
         with self.assertRaises(ValueError):
-            approvals.review(_store(), "P1", "H", "maybe")
+            approvals.review(_store(), "P1", "auto-test", "maybe")
         with self.assertRaises(KeyError):
-            approvals.review(_store(), "PX", "H", "approved")
+            approvals.review(_store(), "PX", "auto-test", "approved")
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ class TestHistory(unittest.TestCase):
         ag = Agent(s, SimulatedProvider())
         prop = ag.propose("C1")
         self.assertEqual(prop.team, "Agreements")
-        approvals.review(s, prop.id, "Human", "approved", "ok")
+        approvals.review(s, prop.id, "auto-test", "approved", "ok")
         kinds = [h[1] for h in s.history("C1")]
         self.assertIn("tool", kinds)
         self.assertIn("proposal", kinds)
@@ -32,12 +32,12 @@ class TestHistory(unittest.TestCase):
             20000, 5000),), 15000))
         ag = Agent(s, SimulatedProvider())
         prop = ag.propose("C2")
-        approvals.review(s, prop.id, "Human", "approved", "ok")
+        approvals.review(s, prop.id, "auto-test", "approved", "ok")
         for h in s.history("C2"):
             self.assertEqual(len(h), 6)
             self.assertIn("T", h[5])  # ISO date+time
         rev = [h for h in s.history("C2") if h[1] == "review"][0]
-        self.assertIn("Human", rev[4])
+        self.assertIn("auto-test", rev[4])
 
 
 if __name__ == "__main__":

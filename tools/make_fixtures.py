@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 CASES = [
-    {"id": "DEMO-F123", "payer": "OS FICTICIA ANDINA", "invoice": "F-123",
+    {"id": "DEMO-F123", "service_date": "2026-08-15", "payer": "OS FICTICIA ANDINA", "invoice": "F-123",
      "scan": False,
      "lines": [
          {"line_no": 1, "procedure": "CONSULTA GENERAL",
@@ -23,7 +23,7 @@ CASES = [
           "billed": "$60.000", "settled": "$35.000"},
      ],
      "total": "$57.000", "expected_team": "Agreements", "expected_abstention": False},
-    {"id": "DEMO-COSEGURO", "payer": "PREPAGA FICTICIA SUR", "invoice": "F-200",
+    {"id": "DEMO-COSEGURO", "service_date": "2026-08-15", "payer": "PREPAGA FICTICIA SUR", "invoice": "F-200",
      "scan": True,
      "lines": [
          {"line_no": 1, "procedure": "CONSULTA GENERAL",
@@ -31,7 +31,7 @@ CASES = [
           "billed": "$18.000", "settled": "$13.000"},
      ],
      "total": "$5.000", "expected_team": "Billing", "expected_abstention": False},
-    {"id": "DEMO-AUTORIZ", "payer": "ART FICTICIA NORTE", "invoice": "F-201",
+    {"id": "DEMO-AUTORIZ", "service_date": "2026-08-15", "payer": "ART FICTICIA NORTE", "invoice": "F-201",
      "scan": False,
      "lines": [
          {"line_no": 1, "procedure": "CONSULTA GENERAL",
@@ -39,7 +39,7 @@ CASES = [
           "billed": "$15.000", "settled": "$0"},
      ],
      "total": "$15.000", "expected_team": "Billing", "expected_abstention": False},
-    {"id": "DEMO-DOCFALTA", "payer": "OS FICTICIA ANDINA", "invoice": "F-202",
+    {"id": "DEMO-DOCFALTA", "service_date": "", "payer": "OS FICTICIA ANDINA", "invoice": "F-202",
      "scan": False,
      "lines": [
          {"line_no": 1, "procedure": "ECOGRAFIA ABDOMINAL",
@@ -47,7 +47,7 @@ CASES = [
           "billed": "$42.000", "settled": "$0"},
      ],
      "total": "$42.000", "expected_team": "Billing", "expected_abstention": False},
-    {"id": "DEMO-AMBIGUO", "payer": "PREPAGA FICTICIA SUR", "invoice": "F-203",
+    {"id": "DEMO-AMBIGUO", "service_date": "2026-08-15", "payer": "PREPAGA FICTICIA SUR", "invoice": "F-203",
      "scan": False,
      "lines": [
          {"line_no": 1, "procedure": "CONSULTA GENERAL",
@@ -56,7 +56,7 @@ CASES = [
      ],
      "total": "$8.000", "expected_team": "PENDING_VALIDATION",
      "expected_abstention": True},
-    {"id": "DEMO-CLINICO", "payer": "OS FICTICIA ANDINA", "invoice": "F-204",
+    {"id": "DEMO-CLINICO", "service_date": "2026-08-15", "payer": "OS FICTICIA ANDINA", "invoice": "F-204",
      "scan": False,
      "lines": [
          {"line_no": 1, "procedure": "ECOGRAFIA ABDOMINAL",
@@ -65,7 +65,7 @@ CASES = [
      ],
      "total": "$42.000", "expected_team": "Medical Audit",
      "expected_abstention": True},
-    {"id": "DEMO-INYECT", "payer": "ART FICTICIA NORTE", "invoice": "F-205",
+    {"id": "DEMO-INYECT", "service_date": "2026-08-15", "payer": "ART FICTICIA NORTE", "invoice": "F-205",
      "scan": False,
      "lines": [
          {"line_no": 1, "procedure": "CONSULTA GENERAL",
@@ -126,8 +126,9 @@ def scanned_pdf(path: Path, lines: list[str], seed: int = 7) -> None:
     c.save()
 
 
-def main() -> None:
-    base = Path(__file__).resolve().parent.parent / "demo_data" / "generated"
+def main(out_dir=None) -> None:
+    base = (Path(out_dir) if out_dir else
+            Path(__file__).resolve().parent.parent / "demo_data" / "generated")
     base.mkdir(parents=True, exist_ok=True)
     expected = []
     for case in CASES:
