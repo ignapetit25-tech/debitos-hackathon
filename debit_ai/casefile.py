@@ -20,7 +20,6 @@ BACKED = "backed_difference"
 INCONSISTENCY = "inconsistency"
 INSUFFICIENT = "insufficient_evidence"
 CLINICAL = "clinical_human"
-NO_SHORTFALL = "no_shortfall"  # deterministic only: payer covered the agreed value
 
 VALIDITY_RE = re.compile(r"VIGENCIA\s*:\s*(\d{4}-\d{2}-\d{2})\s*\.\.\s*(\d{4}-\d{2}-\d{2})")
 SETTLEMENT_LINE_RE = re.compile(r"RENGLON\s+(\d+)\s*:\s*DEBITO\s+\$([\d.,]+)\s*MOTIVO\s*:\s*(.+)")
@@ -129,14 +128,16 @@ def investigate(store, case: Case, rate_fn) -> dict:
         ref, source = agreed_value(r.procedure, case.payer,
                                    case.service_date, docs.get("agreement"),
                                    rate_fn)
-        over = None if ref is None else max(0, r.billed_cents - ref)
-        gap = None if ref is None else max(0, ref - r.settled_cents)
+        # Pure arithmetic, no merit: signed differences, None when unknown.
+        d1 = None if ref is None else r.billed_cents - ref
+        d2 = None if ref is None else ref - r.settled_cents
         lines.append({"line_no": r.line_no, "procedure": r.procedure, "reason": r.reason,
                       "billed_cents": r.billed_cents,
                       "settled_cents": r.settled_cents,
                       "debit_cents": r.debit_cents,
                       "ref_cents": ref, "ref_source": source,
-                      "overbilled_cents": over, "payment_gap_cents": gap})
+                      "diff_billed_ref_cents": d1,
+                      "diff_ref_settled_cents": d2})
         if rules.is_clinical(r.reason):
             add(r.line_no, CLINICAL, "invoice", r.reason,
                 "Reason with clinical content: routed to people.",
@@ -144,28 +145,21 @@ def investigate(store, case: Case, rate_fn) -> dict:
         elif ref is None:
             missing.append(f"L{r.line_no}: {source}")
             add(r.line_no, INSUFFICIENT, "invoice", r.reason,
-                f"Agreed value cannot be set: {source}.",
-                "Stop: ask for service date or current agreement.")
-        elif gap > 0:
+                f"Rate check pending: {source}.",
+                "Pending information for this check: service date or "
+                "current agreement. Nothing is concluded about merit.")
+        else:
             add(r.line_no, BACKED, "invoice", r.reason,
-                f"Billed {format_money(r.billed_cents)} vs agreed "
+                f"Billed {format_money(r.billed_cents)}; agreed "
                 f"{format_money(ref)} ({source}); settled "
-                f"{format_money(r.settled_cents)}. Overbilled "
-                f"{format_money(over)}; payment shortfall "
-                f"{format_money(gap)} (founded amount).",
-                "Backs amounts, not the legal merit of the claim.")
-        elif gap == 0:
-            add(r.line_no, NO_SHORTFALL, "invoice", r.reason,
-                f"Settled {format_money(r.settled_cents)} covers agreed "
-                f"{format_money(ref)} ({source}); debit "
-                f"{format_money(r.debit_cents)} equals overbilling of "
-                f"{format_money(over)}. No payment shortfall.",
-                "No economic recommendation: a human must accept the "
-                "debit or adjust billing.")
-    gaps = [l["payment_gap_cents"] for l in lines]
-    overs = [l["overbilled_cents"] for l in lines]
-    total_gap = sum(gaps) if all(g is not None for g in gaps) else None
-    total_over = sum(overs) if all(o is not None for o in overs) else None
+                f"{format_money(r.settled_cents)}; debit "
+                f"{format_money(r.debit_cents)}. Arithmetic only: "
+                f"billed-agreed {format_money(d1)}, "
+                f"agreed-settled {format_money(d2)}.",
+                "No merit conclusion: an arithmetic difference is not "
+                "a payer reason. The team verifies; a human resolves.")
+    refs = [l["ref_cents"] for l in lines]
+    total_ref = sum(refs) if all(v is not None for v in refs) else None
     rule: RuleRef = rules.evaluate(" | ".join(r.reason for r in case.lines))
     kinds = {h.kind for h in findings}
     if CLINICAL in kinds:
@@ -175,18 +169,15 @@ def investigate(store, case: Case, rate_fn) -> dict:
         team = rule.team if rule.team != rules.PENDING else rules.PENDING
         action = "request_extension"
         step = "Ask for clarification or missing documents before deciding."
-    elif total_gap and total_gap > 0:
-        team, action = rule.team, "claim"
-        step = (f"Backed: route to {rule.team} for claiming "
-                f"{format_money(total_gap)} of "
-                f"{format_money(case.total_debit_cents)} debit "
-                f"(overbilled {format_money(total_over)} is not claimable).")
     else:
-        team, action = rule.team, "no_claim"
-        step = ("No payment shortfall: debit matches overbilling; "
-                "a human must accept the debit or adjust billing.")
+        team, action = rule.team, "route_team"
+        step = (f"Route to {rule.team} for verification. Totals: billed "
+                f"{format_money(sum(l['billed_cents'] for l in lines))}, "
+                f"agreed {format_money(total_ref)}, settled "
+                f"{format_money(sum(l['settled_cents'] for l in lines))}, "
+                f"debit {format_money(case.total_debit_cents)}. "
+                f"Team verifies; human resolves.")
     return {"lines": lines, "findings": findings, "missing": missing,
             "rule": rule, "team": team, "action": action,
             "next_step": step, "sums_ok": ok_sum, "dif_cents": dif,
-            "total_gap_cents": total_gap,
-            "total_overbilled_cents": total_over}
+            "total_ref_cents": total_ref}

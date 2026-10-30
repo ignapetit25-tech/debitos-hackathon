@@ -46,9 +46,9 @@ class TestGate(unittest.TestCase):
     def _gates(self, s):
         return [h for h in s.history("G1") if h[1] == "gate"]
 
-    def test_verified_backed_keeps_claim(self):
+    def test_verified_backed_keeps_routing(self):
         s, prop = self._run([finding()])
-        self.assertEqual((prop.team, prop.action), ("Agreements", "claim"))
+        self.assertEqual((prop.team, prop.action), ("Agreements", "route_team"))
         self.assertFalse(prop.needs_human)
         self.assertEqual(self._gates(s), [])
         self.assertIn("1 verified finding(s)", prop.explanation)
@@ -62,7 +62,7 @@ class TestGate(unittest.TestCase):
         g = self._gates(s)
         self.assertEqual(len(g), 1)
         self.assertEqual((g[0][3], g[0][4]),
-                         ("Agreements/claim", "Medical Audit/route_human"))
+                         ("Agreements/route_team", "Medical Audit/route_human"))
         self.assertIn("GATE:", prop.explanation)
 
     def test_unverified_clinical_routes_human(self):
@@ -73,7 +73,7 @@ class TestGate(unittest.TestCase):
                          ("Medical Audit", "route_human"))
         self.assertEqual(len(self._gates(s)), 1)
 
-    def test_verified_inconsistency_stops_claim(self):
+    def test_verified_inconsistency_stops_routing(self):
         s, prop = self._run([finding(kind="inconsistency")])
         self.assertEqual((prop.team, prop.action),
                          ("Agreements", "request_extension"))
@@ -82,9 +82,9 @@ class TestGate(unittest.TestCase):
         self.assertEqual(len(g), 1)
         self.assertIn("contradiction", g[0][2])
 
-    def test_unverified_inconsistency_keeps_claim(self):
+    def test_unverified_inconsistency_keeps_routing(self):
         s, prop = self._run([finding(kind="inconsistency")], with_doc=False)
-        self.assertEqual(prop.action, "claim")
+        self.assertEqual(prop.action, "route_team")
         self.assertEqual(self._gates(s), [])
         self.assertIn("CITATION UNVERIFIED (not used as evidence)",
                       prop.explanation)

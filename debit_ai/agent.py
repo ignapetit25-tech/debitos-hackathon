@@ -140,7 +140,7 @@ class Agent:
         prop = Proposal(
             id=self.store.new_proposal_id(case_id), case_id=case_id, team=team,
             rule=rule, action=action, explanation=explanation,
-            references=tuple(refs), needs_human=(action != 'claim'),
+            references=tuple(refs), needs_human=(action != 'route_team'),
         )
         self.store.save_proposal(case_id, prop)
         self.store.save_findings(prop.id, [h.__dict__ for h in model_h])
@@ -153,11 +153,11 @@ class Agent:
     def _apply_gate(self, case_id, team, action, model_h, model_ok):
         """Post-model barrier, enforced in code (never in the model).
 
-        Relevant model findings can only stop or reroute an economic
+        Relevant model findings can only stop or reroute a routing
         recommendation, never make one: clinical content (verified or
         not -- safe direction) routes to humans; a VERIFIED
-        contradiction or evidence gap stops a claim. The override and
-        the previous proposal are recorded as a "gate" event.
+        contradiction or evidence gap stops team routing. The override
+        and the previous proposal are recorded as a "gate" event.
         Returns (team, action, note) with note "" when no override.
         """
         if not model_ok:
@@ -168,8 +168,8 @@ class Agent:
         if "clinical_human" in any_kinds and action != "route_human":
             team, action = "Medical Audit", "route_human"
             reason = "model flagged clinical content"
-        elif action == "claim" and (verified & {"inconsistency",
-                                                "insufficient_evidence"}):
+        elif action == "route_team" and (verified & {"inconsistency",
+                                                      "insufficient_evidence"}):
             action = "request_extension"
             reason = "model found verified contradiction/evidence gap"
         else:

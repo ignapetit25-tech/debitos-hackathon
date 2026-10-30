@@ -22,34 +22,32 @@ class AlwaysFails(Provider):
 
 
 class TestCasefile(unittest.TestCase):
-    def test_backed_claims(self):
+    def test_backed_routes_team(self):
         s = SyntheticStore(tempfile.mktemp(suffix=".db"))
         s.seed_case(case("2026-08-15", "supera el valor del convenio", 2000000, 500000))
         ag = Agent(s, SimulatedProvider())
         prop = ag.propose("E1")
-        self.assertEqual((prop.team, prop.action), ("Agreements", "claim"))
+        self.assertEqual((prop.team, prop.action), ("Agreements", "route_team"))
         inv = ag.investigate("E1")
         self.assertEqual(inv["findings"][0].kind, "backed_difference")
         self.assertTrue(inv["findings"][0].verified)
         self.assertEqual(inv["lines"][0]["ref_cents"], 1650000)
-        # Founded merit, not just billed > ref: shortfall vs overbilling.
-        self.assertEqual(inv["lines"][0]["payment_gap_cents"], 1150000)
-        self.assertEqual(inv["lines"][0]["overbilled_cents"], 350000)
-        self.assertEqual(inv["total_gap_cents"], 1150000)
-        self.assertIn("$11.500,00", prop.explanation)
+        # Signed arithmetic facts, no merit.
+        self.assertEqual(inv["lines"][0]["diff_billed_ref_cents"], 350000)
+        self.assertEqual(inv["lines"][0]["diff_ref_settled_cents"], 1150000)
+        self.assertEqual(inv["total_ref_cents"], 1650000)
 
-    def test_below_ref_with_shortfall_claims(self):
-        # Billed below the agreed value is not suspicious by itself:
-        # settled 200000 vs agreed 1650000 leaves a founded shortfall.
+    def test_below_ref_routes_with_facts(self):
+        # Billed below the agreed value is arithmetic, not suspicion.
         s = SyntheticStore(tempfile.mktemp(suffix=".db"))
         s.seed_case(case("2026-08-15", "supera el valor del convenio", 1000000, 200000))
         ag = Agent(s, SimulatedProvider())
         prop = ag.propose("E1")
-        self.assertEqual(prop.action, "claim")
+        self.assertEqual(prop.action, "route_team")
         inv = ag.investigate("E1")
         self.assertEqual(inv["findings"][0].kind, "backed_difference")
-        self.assertEqual(inv["lines"][0]["payment_gap_cents"], 1450000)
-        self.assertEqual(inv["lines"][0]["overbilled_cents"], 0)
+        self.assertEqual(inv["lines"][0]["diff_billed_ref_cents"], -650000)
+        self.assertEqual(inv["lines"][0]["diff_ref_settled_cents"], 1450000)
 
     def test_no_date_backs_nothing(self):
         s = SyntheticStore(tempfile.mktemp(suffix=".db"))
@@ -57,7 +55,7 @@ class TestCasefile(unittest.TestCase):
         ag = Agent(s, SimulatedProvider())
         prop = ag.propose("E1")
         self.assertEqual(prop.team, "Agreements")  # team kept
-        self.assertEqual(prop.action, "request_extension")  # but doesn't claim
+        self.assertEqual(prop.action, "request_extension")  # but stays for review
         inv = ag.investigate("E1")
         self.assertEqual(inv["findings"][0].kind, "insufficient_evidence")
 
@@ -163,4 +161,4 @@ class TestModelFindings(unittest.TestCase):
         ag = Agent(s, FakeMeta([]))
         prop = ag.propose("E1")
         self.assertIn("DEGRADED", prop.explanation)
-        self.assertEqual(prop.action, "claim")  # deterministic part kept
+        self.assertEqual(prop.action, "route_team")  # deterministic part kept

@@ -10,7 +10,7 @@ def _store():
     s = SyntheticStore(tempfile.mktemp(suffix=".db"))
     s.seed_case(Case("C1", "F", "F-1", (LineItem(1, "P", "M", 200, 100),), 100))
     s.save_proposal("C1", Proposal("P1", "C1", "Agreements",
-        RuleRef("Agreements", 4, ("x",)), "claim", "e", ("r",)))
+        RuleRef("Agreements", 4, ("x",)), "route_team", "e", ("r",)))
     return s
 
 

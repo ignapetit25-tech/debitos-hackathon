@@ -17,6 +17,9 @@ PENDING = "PENDING_VALIDATION"
 
 # Clinical triggers: medical jargon requiring human judgment.
 CLINICAL_TRIGGERS = (
+    # Confirmed by the debit owner: "La medicación utilizada no
+    # corresponde al cuadro del paciente" -> Medical Audit evaluates.
+    "no corresponde al cuadro",
     "pertinencia medica",
     "justificacion clinica",
     "criterio medico",

@@ -65,7 +65,8 @@ class Proposal:
     case_id: str
     team: str
     rule: RuleRef
-    action: str  # claim | route_human | request_extension | no_claim
+    action: str  # route_team | route_human | request_extension
+    # Routing only: the AI classifies and routes; it never decides merit.
     explanation: str
     references: tuple[str, ...]  # which data was used
     needs_human: bool = False

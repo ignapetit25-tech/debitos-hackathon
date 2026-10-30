@@ -14,13 +14,15 @@ class TestRules(unittest.TestCase):
         self.assertEqual(r.team, rules.PENDING)
 
     def test_clinical(self):
+        self.assertTrue(rules.is_clinical(
+            "La medicación utilizada no corresponde al cuadro del paciente"))
         self.assertTrue(rules.is_clinical("criterio medico dudoso"))
         self.assertFalse(rules.is_clinical("valor del convenio"))
 
     def test_score_is_not_confidence(self):
         from debit_ai.contracts import Proposal, RuleRef
         p = Proposal("P1", "C1", "Agreements", RuleRef("Agreements", 7, ("x",)),
-                     "claim", "e", ("r",), False, 0.92)
+                     "route_team", "e", ("r",), False, 0.92)
         self.assertIsInstance(p.rule.points, int)
         self.assertIsInstance(p.extraction_confidence, float)
         self.assertNotEqual(p.rule.points, p.extraction_confidence)
