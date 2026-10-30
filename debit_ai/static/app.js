@@ -29,17 +29,17 @@ async function call(m, u, b) {
   return j;
 }
 function parseMoney(s) {
-  s = String(s === undefined || s === null ? "" : s).replace(/\$/g, "").replace(/\s/g, "");
-  if (!s) return 0;
-  let neg = false;
-  if (s[0] === "-") { neg = true; s = s.slice(1); }
-  let n;
-  if (s.indexOf(".") >= 0 && s.indexOf(",") >= 0)
-    n = parseFloat(s.replace(/\./g, "").replace(",", "."));
-  else if (s.indexOf(",") >= 0) n = parseFloat(s.replace(",", "."));
-  else n = parseFloat(s);
-  if (!isFinite(n) || n < 0) return null;
-  return Math.round(n * 100) * (neg ? -1 : 1);
+  // Strict US format ONLY (matches fmtMoney display): optional $, digits
+  // with optional thousands commas, optional .cents (1-2 digits).
+  // Anything else (trailing text, bad grouping, AR-style decimals,
+  // empties, negatives) is invalid: never guess silently.
+  if (s === undefined || s === null) return null;
+  s = String(s).replace(/\$/g, "").replace(/\s/g, "");
+  if (!s) return null;
+  if (!/^(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?$/.test(s)) return null;
+  const n = parseFloat(s.replace(/,/g, ""));
+  if (!isFinite(n)) return null;
+  return Math.round(n * 100);
 }
 function badge(ok, warn, txtOk, txtWarn) {
   return el("span", "badge " + (ok ? "ok" : (warn ? "warn" : "bad")),
@@ -330,7 +330,7 @@ async function saveFollowup() {
   const rec = parseMoney($("fo-rec").value);
   const ace = parseMoney($("fo-acc").value);
   const resp = $("fo-owner").value.trim();
-  if (rec === null || ace === null) { $("fo-out").textContent = "✕ Invalid amounts (e.g. 12,500.50)."; return; }
+  if (rec === null || ace === null) { $("fo-out").textContent = "✕ Invalid amounts: use 12,500.50 format (explicit 0, no negatives)."; return; }
   if (!resp) { $("fo-out").textContent = "Type the team owner."; return; }
   S.busy = true;
   try {
@@ -460,7 +460,7 @@ function renderEvidence() {
   const evtLast = S.hist[S.hist.length - 1];
   n.appendChild(el("p", "muted", S.hist.length + " events · last: " +
     evtLast[1] + " " + (evtLast[5] || "")));
-  const ICON = {proposal: "✓", review: "✔", followup: "↩", model_call: "◈"};
+  const ICON = {proposal: "✓", review: "✔", followup: "↩", model_call: "◈", gate: "⛔"};
   S.hist.filter(h => ICON[h[1]]).forEach(h => {
     const d = el("p", null, null);
     d.appendChild(el("strong", null, ICON[h[1]] + " " + h[1] + " "));

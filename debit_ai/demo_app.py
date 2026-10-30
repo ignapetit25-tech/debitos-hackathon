@@ -60,7 +60,9 @@ def _exp_json(inv: dict) -> dict:
                      "phrases": list(inv["rule"].phrases)},
             "team": inv["team"], "action": inv["action"],
             "next_step": inv["next_step"],
-            "sums_ok": inv["sums_ok"], "dif_cents": inv["dif_cents"]}
+            "sums_ok": inv["sums_ok"], "dif_cents": inv["dif_cents"],
+            "total_gap_cents": inv["total_gap_cents"],
+            "total_overbilled_cents": inv["total_overbilled_cents"]}
 
 
 def _case_json(case, docs: list | None = None) -> dict:

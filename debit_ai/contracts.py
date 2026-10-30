@@ -65,7 +65,7 @@ class Proposal:
     case_id: str
     team: str
     rule: RuleRef
-    action: str  # claim | route_human | request_extension
+    action: str  # claim | route_human | request_extension | no_claim
     explanation: str
     references: tuple[str, ...]  # which data was used
     needs_human: bool = False

@@ -124,12 +124,15 @@ class Agent:
         )
         refs.append(f"file:{len(inv['findings'])}-findings")
         team, action = inv["team"], inv["action"]
-        abstain = action != "claim"
         base = (f"{inv['next_step']} Rules: {rule.team} "
                 f"({rule.points} pts: {', '.join(rule.phrases) or 'no-criterion'}). "
                 f"Findings: {summary or 'none'}.")
         model_h, model_t, model_ok = self._model_findings(case, inv)
         self._log_call(case_id, model_ok)
+        team, action, gate_note = self._apply_gate(case_id, team, action,
+                                                  model_h, model_ok)
+        if gate_note:
+            base += f" GATE: {gate_note}."
         if model_ok:
             explanation = f"{base} Model ({self.provider.name}): {model_t}"
         else:
@@ -137,7 +140,7 @@ class Agent:
         prop = Proposal(
             id=self.store.new_proposal_id(case_id), case_id=case_id, team=team,
             rule=rule, action=action, explanation=explanation,
-            references=tuple(refs), needs_human=abstain,
+            references=tuple(refs), needs_human=(action != 'claim'),
         )
         self.store.save_proposal(case_id, prop)
         self.store.save_findings(prop.id, [h.__dict__ for h in model_h])
@@ -146,6 +149,36 @@ class Agent:
             before="no proposal", after=f"{team}/{action}",
         )
         return prop
+
+    def _apply_gate(self, case_id, team, action, model_h, model_ok):
+        """Post-model barrier, enforced in code (never in the model).
+
+        Relevant model findings can only stop or reroute an economic
+        recommendation, never make one: clinical content (verified or
+        not -- safe direction) routes to humans; a VERIFIED
+        contradiction or evidence gap stops a claim. The override and
+        the previous proposal are recorded as a "gate" event.
+        Returns (team, action, note) with note "" when no override.
+        """
+        if not model_ok:
+            return team, action, ""
+        verified = {h.kind for h in model_h if h.verified}
+        any_kinds = {h.kind for h in model_h}
+        prev = f"{team}/{action}"
+        if "clinical_human" in any_kinds and action != "route_human":
+            team, action = "Medical Audit", "route_human"
+            reason = "model flagged clinical content"
+        elif action == "claim" and (verified & {"inconsistency",
+                                                "insufficient_evidence"}):
+            action = "request_extension"
+            reason = "model found verified contradiction/evidence gap"
+        else:
+            return team, action, ""
+        note = f"{reason} (was {prev})"
+        self.store.log(case_id, "gate",
+                       f"{reason}; model kinds: {sorted(any_kinds) or 'none'}",
+                       before=prev, after=f"{team}/{action}")
+        return team, action, note
 
     def _model_findings(self, case, inv):
         docs = {d["role"]: d for d in self.store.documents(case.id)}
@@ -185,9 +218,15 @@ class Agent:
                 halls.append(h)
         if not halls:
             return [], "model yielded no usable findings (see model_call)", False
-        txt = f"{len(halls)} finding(s): " + "; ".join(
-            f"[{h.kind}/{'citation OK' if h.verified else 'CITATION UNVERIFIED'}] "
-            f"{h.interpretation[:150]}" for h in halls)
+        ver = [h for h in halls if h.verified]
+        unver = [h for h in halls if not h.verified]
+        txt = f"{len(ver)} verified finding(s)"
+        if ver:
+            txt += ": " + "; ".join(
+                f"[{h.kind}/citation OK] {h.interpretation[:150]}" for h in ver)
+        if unver:
+            txt += (f"; {len(unver)} CITATION UNVERIFIED "
+                    f"(not used as evidence)")
         return halls, txt, True
 
     def _validate_finding(self, case_id, i, item, docs):
