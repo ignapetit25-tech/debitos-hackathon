@@ -6,3 +6,4 @@ demo_data/*.db
 demo_data/*.pdf
 demo_data/generated/
 *.log
+demo_data/backups/

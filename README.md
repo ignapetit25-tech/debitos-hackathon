@@ -109,9 +109,21 @@ cp .env.example .env   # fill in MODEL_API_KEY for real Meta
 ## Run
 
 ```bash
-.venv/bin/python -B tools/prepare_demo.py   # 8 cases + main case + docs
+.venv/bin/python -B tools/prepare_demo.py --db demo_data/demo.db
+# 8 cases + main case + docs. The destination is REQUIRED and must
+# not exist (for scratch work use --db /tmp/you/demo.db). Rebuilding
+# an existing DB needs --replace --backup-to <new-path>, plus
+# --confirm-active-db for the DB the server uses.
 IA_PROVIDER=simulated .venv/bin/python -B -m debit_ai.demo_app
 # open http://127.0.0.1:8931/ (main case EXP-900 opens by itself)
+```
+
+Back up before anything risky (verified, never blind copy):
+
+```bash
+.venv/bin/python -B tools/backup_db.py --db demo_data/demo.db \
+    --to demo_data/backups/demo-<date>.db
+# VALID only with integrity_check + restore test on a separate path
 ```
 
 The demo reads the repo `.env` itself (explicit environment always

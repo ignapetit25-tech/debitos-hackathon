@@ -1,14 +1,53 @@
 # Test report
 
+## Data-loss incident (2026-10-30) — read before the evidence below
+
+On 10/30 the agent ran `tools/prepare_demo.py` without a scratch
+destination; the script silently rebuilt the default path and
+deleted the live `demo_data/demo.db` (it used `unlink()` with no
+backup). No copy existed (git-ignored, no open handle to recover
+from, no matching /tmp copy among 1157 scanned). This report now
+distinguishes three evidence classes — do not mix them:
+
+1. HISTORICAL (records lost, written account preserved). The Meta
+   and Baseten runs below happened as described, with the IDs,
+   latencies and token counts quoted — but their original DB rows
+   (`model_call` events, proposals, the `deler` personal review)
+   are GONE and were NOT reconstructed. Treat quoted IDs/dates as
+   a written record, not as queryable originals. No agent will
+   ever re-create the personal review; only the owner can.
+2. PRESERVED (files intact). Fixture PDFs, `demo_data/generated`,
+   shots `docs/shots/01-06`, scripts, docs, and the offline suite.
+3. NEW (from 10/31 on). Any run recorded after the fix below, on
+   the current reseeded DB, with real dates and verifiable rows.
+
+Fix (all in-repo, tested): `prepare_demo.py` now REQUIRES an
+explicit destination (`--db` or `IA_DEMO_DB`), fails without
+touching anything when the target exists, and rebuilds only via
+`--replace --backup-to <new-path>` with a verified backup first;
+replacing the active server DB additionally needs
+`--confirm-active-db`. `tools/backup_db.py` takes backups with the
+sqlite3 backup API + `integrity_check` + a restore test on a
+separate path (a file alone is never reported VALID). Protection
+suite `tests/test_protection.py` (9 tests): no-destination CLI
+failure with the live DB byte-identical, existing-target refusal
+with records intact, active-DB refusal, fresh prepare on a
+separate path, and a backup→restore roundtrip with proposals,
+reviews and history identical. Post-incident baseline backup:
+`demo_data/backups/demo-20261031-postincident.db` (VALID,
+fixtures only, history 0 — the honest empty state).
+
 ## Deterministic metrics (no model)
 
 Run (local environment):
-- Offline suite: 71 tests OK, 2 live skipped (gated by
+- Offline suite: 80 tests OK, 2 live skipped (gated by
   `META_LIVE=1` / `BASETEN_LIVE=1`, off by default).
   Stages 1-4 added: strict money-input vectors (Node, 25/25),
   post-model gate, neutral routing (no merit conclusions),
   review persistence, one-command setup, per-page citations,
   followup invariants, per-action drafts, numeric versions.
+  Post-incident: 9 protection tests (explicit destination,
+  fail-if-exists, active-DB guard, verified backup roundtrip).
   Package `debit_ai`, English API/UI; Spanish kept only in
   fictitious domain text.
 - Baseten: implemented (`BasetenProvider`, minimal probe and
