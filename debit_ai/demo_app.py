@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from debit_ai import approvals, drafts, process
+from debit_ai import approvals, drafts, process, tasks
 from debit_ai.agent import Agent
 from debit_ai.provider import ProviderError, build_provider
 from debit_ai.synthetic import SyntheticStore
@@ -159,11 +159,13 @@ class Handler(BaseHTTPRequestHandler):
                     "checklist": chk, "reviewer": reviewer,
                     "sla": {"since": since, "days": process.SLA_DAYS,
                             "due": process.add_business_days(since) if since else None}})
-            elif url.path == "/api/followup":
-                pid = parse_qs(url.query).get("proposal_id", [""])[0]
-                _json(self, 200, {"followup": self.store.get_followup(pid),
-                                  "approved": approvals.has_approved_review(
-                                      self.store, pid)})
+            elif url.path == "/api/circuit":
+                cid = parse_qs(url.query).get("case_id", [""])[0]
+                _json(self, 200, {
+                    "tasks": self.store.list_tasks(cid),
+                    "resolutions": self.store.list_resolutions(cid),
+                    "rebillings": self.store.list_rebillings(cid),
+                    "recoveries": self.store.list_recoveries(cid)})
             elif url.path == "/api/findings":
                 pid = parse_qs(url.query).get("proposal_id", [""])[0]
                 if not self.store.get_proposal(pid):
@@ -224,13 +226,47 @@ class Handler(BaseHTTPRequestHandler):
                 prop = self.agent.propose(body["case_id"])
                 _json(self, 200, {"sums_ok": ok, "dif_cents": dif,
                                   "proposal": _prop_json(prop)})
-            elif self.path == "/api/followup":
-                seg = approvals.followup(
-                    self.store, body["proposal_id"], body.get("decision", ""),
-                    body.get("recoverable_cents"), body.get("accepted_cents"),
-                    body.get("owner", ""), body.get("date", ""),
+            elif self.path == "/api/task":
+                task = tasks.create_task(
+                    self.store, body["case_id"], body["line_no"],
+                    body.get("team", ""), body.get("motive", ""),
+                    body.get("assignee", ""))
+                _json(self, 200, {"task": task})
+            elif self.path == "/api/task/answer":
+                task = tasks.answer_task(
+                    self.store, body["task_id"], body.get("responder", ""),
+                    body.get("response", ""), body.get("backing_ref", ""))
+                _json(self, 200, {"task": task})
+            elif self.path == "/api/task/verify":
+                task = tasks.verify_task(
+                    self.store, body["task_id"], body.get("reviewer", ""),
                     body.get("note", ""))
-                _json(self, 200, {"followup": seg})
+                _json(self, 200, {"task": task})
+            elif self.path == "/api/task/return":
+                task = tasks.return_task(
+                    self.store, body["task_id"], body.get("reviewer", ""),
+                    body.get("missing", ""))
+                _json(self, 200, {"task": task})
+            elif self.path == "/api/resolution":
+                res = tasks.resolve_line(
+                    self.store, body["case_id"], body["line_no"],
+                    body.get("decided_by", ""), body.get("decision", ""),
+                    body.get("note", ""))
+                _json(self, 200, {"resolution": res})
+            elif self.path == "/api/rebilling":
+                rb = tasks.record_rebilling(
+                    self.store, body["case_id"], body["line_no"],
+                    body.get("number", ""), body.get("amount_cents"),
+                    body.get("payer", ""), body.get("date", ""),
+                    body.get("note", ""))
+                _json(self, 200, {"rebilling": rb})
+            elif self.path == "/api/recovery":
+                rec = tasks.record_recovery(
+                    self.store, body["rebilling_id"], body.get("method", ""),
+                    body.get("reference", ""), body.get("confirmed_by", ""),
+                    body.get("amount_cents"), body.get("date", ""),
+                    body.get("note", ""))
+                _json(self, 200, {"recovery": rec})
             elif self.path == "/api/review":
                 dec = approvals.review(
                     self.store, body["proposal_id"], body.get("reviewer", ""),

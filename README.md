@@ -44,7 +44,9 @@ with rationale and before/after).
 Fictitious casefile (invoice + settlement + agreement) → deterministic
 extraction and reconciliation → verifiable findings → Meta input
 with code-checked citations → routing proposal → draft → mandatory
-human review → auditable history. UI in 3 areas: inbox,
+human review → per-line tasks → sector answers with backing →
+debitos verification → per-line resolution → rebilling →
+recovery evidence → auditable history. UI in 3 areas: inbox,
 casefile, evidence.
 
 Hard limits (in contracts, not on posters): the AI classifies and
@@ -77,16 +79,25 @@ payer reasons. "Medical Audit" is a human destination team.
   findings are tagged CITATION UNVERIFIED and never used as
   evidence. A post-model gate in code can only stop or reroute a
   routing proposal, never make one. The model does no math and
-  invents no confidence.
+  invents no confidence. Preventive I/O budgets in code: input is
+  truncated to `IA_MAX_INPUT_CHARS` (default 12000) BEFORE any
+  call; output is capped with `META_MAX_OUTPUT_TOKENS` /
+  `BASETEN_MAX_OUTPUT_TOKENS` (default 2000) passed to the
+  provider. A warning after an overrun is not a limit.
 - Drafts (`drafts.py`): one deterministic template per action
   (referral, clinical routing, information request).
   Proposals, not sendings.
 - Process (`process.py`): P1/P2/P3 priority by amount, 5-business-day
   SLA from review, pre-routing checklist.
-- Team reply (under redefinition): the current reply form records a
-  team response with owner and date; its decision/amount fields are
-  being reworked into per-task replies with backing references,
-  per the owner's debit circuit (see TEST_REPORT.md).
+- Task circuit (`tasks.py`): tasks per line + sector with the literal
+  motive each answers; sector answers WITH backing (document or
+  precise reference) → debitos verifies or returns (prior answer
+  kept, missing items stated); answering never closes a task.
+  Individual per-line resolution (all tasks verified first, no mass
+  close) → rebilling invoice (NOT recovered money) → recovery
+  evidence (payer credit note or cancelled rebilling invoice).
+  One rebilling per line, one recovery per rebilling; partial or
+  multiple payments are undefined and refused (see TEST_REPORT.md).
 
 ## Three distinct decisions
 
@@ -94,6 +105,18 @@ Approving a proposal (accepting the suggested routing) is NOT
 accepting a debit (agreeing to its economics) NOR authorizing a
 message (sending something to someone). The demo only records the
 first: it sends no messages and changes no external systems.
+
+## Task-circuit demo
+
+```bash
+.venv/bin/python -B tools/demo_circuit.py --db /tmp/circuit/demo.db
+IA_PROVIDER=simulated IA_DEMO_DB=/tmp/circuit/demo.db IA_DEMO_PORT=8932 \
+  .venv/bin/python -B -m debit_ai.demo_app
+# open http://127.0.0.1:8932/ and pick EXP-2501: 3 lines, 4 tasks
+# (Billing + Medical Audit, Agreements + Billing on L3), one
+# returned answer, verifications, 2 resolutions, 1 rebilling,
+# 1 recovery with fictitious evidence. All actors auto-test-*.
+```
 
 ## Install
 

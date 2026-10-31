@@ -40,14 +40,22 @@ fixtures only, history 0 — the honest empty state).
 ## Deterministic metrics (no model)
 
 Run (local environment):
-- Offline suite: 80 tests OK, 2 live skipped (gated by
+- Offline suite: 100 tests OK, 2 live skipped (gated by
   `META_LIVE=1` / `BASETEN_LIVE=1`, off by default).
   Stages 1-4 added: strict money-input vectors (Node, 25/25),
   post-model gate, neutral routing (no merit conclusions),
   review persistence, one-command setup, per-page citations,
-  followup invariants, per-action drafts, numeric versions.
+  per-action drafts, numeric versions.
   Post-incident: 9 protection tests (explicit destination,
   fail-if-exists, active-DB guard, verified backup roundtrip).
+  Circuit: 13 tests (task lifecycle, answer/verify/return guards,
+  per-line resolution, rebilling link, recovery evidence, no
+  amount-derived status) + 7 provider-limit tests (input
+  truncation before any call, output token caps passed to Meta
+  responses/chat and Baseten chat, stubbed clients, 0 network).
+  The legacy reply endpoint/UI (`pending/recovered/accepted/
+  partial`) was REMOVED as a validated definition; its library
+  function stays only for old records and unit tests.
   Package `debit_ai`, English API/UI; Spanish kept only in
   fictitious domain text.
 - Baseten: implemented (`BasetenProvider`, minimal probe and
@@ -84,10 +92,12 @@ Run (local environment):
   idempotent seeding; rates now come from the manager.
 - Process: threshold priority, weekend-skipping SLA,
   checklist (lines, sums, copays, agreement, owner).
-  Team reply (INTERIM): validated reply with a `followup`
-  event exists, but its decision/amount semantics are being
-  reworked into per-task replies with backing references, per
-  the owner's debit circuit. Shot `docs/shots/05-process.png`.
+  Task circuit (confirmed): tasks per line + sector; answer with
+  backing → debitos verify/return; per-line resolution; rebilling
+  (not money); recovery evidence. Fictitious demo case EXP-2501
+  (`tools/demo_circuit.py`, all actors auto-test-*): 3 lines,
+  4 tasks, 1 return, 2 resolutions, 1 rebilling, 1 recovery
+  labeled FICTITIOUS. Shot `docs/shots/05-process.png`.
 - Synthetic evaluation over 7 controlled cases: extraction 7/7,
   routing 7/7, abstention 7/7 (includes 1 scanned PDF with
   spa OCR, confidence 0.92). "Abstention 7/7" means: routed to a human
@@ -118,17 +128,18 @@ Run (local environment):
   fallen provider → DEGRADED with the deterministic casefile intact.
 - UI verified in real engines (jsdom probes + Chromium screenshots
   against a scratch server, simulated provider, 0 paid calls):
-  inbox, auto-opened main case, casefile with totals, evidence
-  with citation-OK / CITATION UNVERIFIED findings, review
-  approve/reject with persistent confirmation, reload persistence,
-  single review event, gated team reply, per-action drafts;
-  0 JS/console errors; 0 innerHTML uses.
+  circuit probe 17/17 (create → answer guards → verify/return →
+  resolution guards → rebilling → recovery, prebuilt circuit case,
+  labeled evidence), review probe 9/9, base probe OK;
+  0 JS/console errors; 0 innerHTML uses. The old followup probe
+  was retired with its endpoint.
 - Shots `docs/shots/01-inbox.png` … `06-polish.png` (Chromium,
   English UI, simulated provider, 0 console errors, 0 inferences):
-  01 inbox with states and amounts; 02 `EXP-900` casefile (summary,
-  totals, neutral checks, open-document buttons); 03 evidence with
-  a selected finding; 04 undecided review form; 05 saved team
-  reply; 06 final state. Prior Spanish-UI shots replaced.
+  01 inbox (9 cases) with states and amounts; 02 `EXP-900`
+  casefile (summary, totals, neutral checks, open-document
+  buttons); 03 evidence with a selected finding; 04 undecided
+  review form; 05 `EXP-2501` circuit (verified tasks, resolutions,
+  rebilling, labeled recovery); 06 final state.
 - Legacy taxonomy note: proposals recorded before the domain
   correction carry action `claim`; drafts and UI render them with
   the current referral template. Old records are kept verbatim.
@@ -176,7 +187,8 @@ Run (local environment):
 Pending:
 - Real JSON adapter (implemented, disabled, unverified).
 - OCR on documents outside the controlled fixtures.
-- Team-reply redefinition: per-line/per-task replies with backing
-  references, administrative resolution, rebilling link, recovery
-  evidence (owner's debit circuit; partial recoveries, closures
-  and exceptions still to be defined with concrete examples).
+- Circuit exceptions (NOT defined; refused in code until the owner
+  rules with a concrete example): multiple rebillings for one
+  line; multiple/partial payments or credit notes against one
+  rebilling; splitting one receipt across invoices/lines; joint
+  multi-line resolutions (single-line only).

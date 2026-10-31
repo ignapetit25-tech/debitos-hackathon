@@ -44,6 +44,28 @@ CREATE TABLE IF NOT EXISTS proposals (
 CREATE TABLE IF NOT EXISTS history (
   seq INTEGER PRIMARY KEY AUTOINCREMENT, case_id TEXT, kind TEXT,
   detail TEXT, before_text TEXT, after_text TEXT, created_at TEXT DEFAULT '');
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY, case_id TEXT, line_no INTEGER, team TEXT,
+  motive TEXT, assignee TEXT DEFAULT '', state TEXT,
+  responder TEXT DEFAULT '', response TEXT DEFAULT '',
+  backing_ref TEXT DEFAULT '', return_note TEXT DEFAULT '',
+  created_at TEXT DEFAULT '', updated_at TEXT DEFAULT '');
+CREATE TABLE IF NOT EXISTS resolutions (
+  id TEXT PRIMARY KEY, case_id TEXT, line_no INTEGER,
+  decided_by TEXT, decision TEXT, note TEXT DEFAULT '',
+  created_at TEXT DEFAULT '',
+  UNIQUE (case_id, line_no));
+CREATE TABLE IF NOT EXISTS rebillings (
+  id TEXT PRIMARY KEY, case_id TEXT, line_no INTEGER,
+  resolution_id TEXT, number TEXT, amount_cents INTEGER,
+  payer TEXT, date TEXT DEFAULT '', note TEXT DEFAULT '',
+  created_at TEXT DEFAULT '',
+  UNIQUE (case_id, line_no));
+CREATE TABLE IF NOT EXISTS recoveries (
+  id TEXT PRIMARY KEY, rebilling_id TEXT UNIQUE, method TEXT,
+  reference TEXT, confirmed_by TEXT, amount_cents INTEGER,
+  date TEXT DEFAULT '', note TEXT DEFAULT '',
+  created_at TEXT DEFAULT '');
 """
 
 
@@ -299,6 +321,186 @@ class SyntheticStore(CaseStore):
             return None
         return dict(zip(("proposal_id", "decision", "recoverable_cents",
                          "accepted_cents", "owner", "date", "note"), row))
+
+    def new_task_id(self, case_id: str) -> str:
+        pref = f"T-{case_id}-"
+        con = self._con()
+        try:
+            rows = con.execute("SELECT id FROM tasks WHERE case_id=?",
+                               (case_id,)).fetchall()
+        finally:
+            con.close()
+        nums = [int(r[0][len(pref):]) for r in rows
+                if r[0].startswith(pref) and r[0][len(pref):].isdigit()]
+        return f"{pref}{(max(nums) + 1) if nums else 1}"
+
+    def save_task(self, task: dict) -> None:
+        con = self._con()
+        try:
+            con.execute(
+                "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (task["id"], task["case_id"], task["line_no"],
+                 task["team"], task["motive"], task.get("assignee", ""),
+                 task["state"], task.get("responder", ""),
+                 task.get("response", ""), task.get("backing_ref", ""),
+                 task.get("return_note", ""), task.get("created_at", ""),
+                 task.get("updated_at", "")),
+            )
+            con.commit()
+        finally:
+            con.close()
+
+    def update_task(self, tid: str, **fields) -> None:
+        allowed = {"state", "responder", "response", "backing_ref",
+                   "return_note", "assignee", "updated_at"}
+        bad = set(fields) - allowed
+        if bad:
+            raise ValueError(f"bad task fields: {sorted(bad)}")
+        con = self._con()
+        try:
+            for k, v in fields.items():
+                con.execute(f"UPDATE tasks SET {k}=? WHERE id=?", (v, tid))
+            con.commit()
+        finally:
+            con.close()
+
+    def get_task(self, tid: str) -> dict | None:
+        con = self._con()
+        try:
+            row = con.execute("SELECT * FROM tasks WHERE id=?",
+                              (tid,)).fetchone()
+        finally:
+            con.close()
+        if not row:
+            return None
+        return dict(zip(("id", "case_id", "line_no", "team", "motive",
+                         "assignee", "state", "responder", "response",
+                         "backing_ref", "return_note", "created_at",
+                         "updated_at"), row))
+
+    def list_tasks(self, case_id: str) -> list[dict]:
+        con = self._con()
+        try:
+            rows = con.execute("SELECT * FROM tasks WHERE case_id=?",
+                               (case_id,)).fetchall()
+        finally:
+            con.close()
+        keys = ("id", "case_id", "line_no", "team", "motive",
+                "assignee", "state", "responder", "response",
+                "backing_ref", "return_note", "created_at", "updated_at")
+        return sorted((dict(zip(keys, r)) for r in rows),
+                      key=lambda d: (d["line_no"], d["id"]))
+
+    def save_resolution(self, res: dict) -> None:
+        con = self._con()
+        try:
+            con.execute("INSERT INTO resolutions VALUES (?,?,?,?,?,?,?)",
+                        (res["id"], res["case_id"], res["line_no"],
+                         res["decided_by"], res["decision"],
+                         res.get("note", ""), res.get("created_at", "")))
+            con.commit()
+        finally:
+            con.close()
+
+    def get_resolution(self, case_id: str, line_no: int) -> dict | None:
+        con = self._con()
+        try:
+            row = con.execute("SELECT * FROM resolutions WHERE case_id=? "
+                              "AND line_no=?", (case_id, line_no)).fetchone()
+        finally:
+            con.close()
+        if not row:
+            return None
+        return dict(zip(("id", "case_id", "line_no", "decided_by",
+                         "decision", "note", "created_at"), row))
+
+    def list_resolutions(self, case_id: str) -> list[dict]:
+        con = self._con()
+        try:
+            rows = con.execute("SELECT * FROM resolutions WHERE case_id=?",
+                               (case_id,)).fetchall()
+        finally:
+            con.close()
+        keys = ("id", "case_id", "line_no", "decided_by", "decision",
+                "note", "created_at")
+        return sorted((dict(zip(keys, r)) for r in rows),
+                      key=lambda d: d["line_no"])
+
+    def save_rebilling(self, rb: dict) -> None:
+        con = self._con()
+        try:
+            con.execute("INSERT INTO rebillings VALUES (?,?,?,?,?,?,?,?,?,?)",
+                        (rb["id"], rb["case_id"], rb["line_no"],
+                         rb["resolution_id"], rb["number"],
+                         rb["amount_cents"], rb["payer"],
+                         rb.get("date", ""), rb.get("note", ""),
+                         rb.get("created_at", "")))
+            con.commit()
+        finally:
+            con.close()
+
+    def get_rebilling(self, rid: str) -> dict | None:
+        con = self._con()
+        try:
+            row = con.execute("SELECT * FROM rebillings WHERE id=?",
+                              (rid,)).fetchone()
+        finally:
+            con.close()
+        if not row:
+            return None
+        return dict(zip(("id", "case_id", "line_no", "resolution_id",
+                         "number", "amount_cents", "payer", "date",
+                         "note", "created_at"), row))
+
+    def list_rebillings(self, case_id: str) -> list[dict]:
+        con = self._con()
+        try:
+            rows = con.execute("SELECT * FROM rebillings WHERE case_id=?",
+                               (case_id,)).fetchall()
+        finally:
+            con.close()
+        keys = ("id", "case_id", "line_no", "resolution_id", "number",
+                "amount_cents", "payer", "date", "note", "created_at")
+        return sorted((dict(zip(keys, r)) for r in rows),
+                      key=lambda d: d["line_no"])
+
+    def save_recovery(self, rec: dict) -> None:
+        con = self._con()
+        try:
+            con.execute("INSERT INTO recoveries VALUES (?,?,?,?,?,?,?,?,?)",
+                        (rec["id"], rec["rebilling_id"], rec["method"],
+                         rec["reference"], rec["confirmed_by"],
+                         rec.get("amount_cents"), rec.get("date", ""),
+                         rec.get("note", ""), rec.get("created_at", "")))
+            con.commit()
+        finally:
+            con.close()
+
+    def get_recovery_by_rebilling(self, rebilling_id: str) -> dict | None:
+        con = self._con()
+        try:
+            row = con.execute("SELECT * FROM recoveries WHERE rebilling_id=?",
+                              (rebilling_id,)).fetchone()
+        finally:
+            con.close()
+        if not row:
+            return None
+        return dict(zip(("id", "rebilling_id", "method", "reference",
+                         "confirmed_by", "amount_cents", "date", "note",
+                         "created_at"), row))
+
+    def list_recoveries(self, case_id: str) -> list[dict]:
+        con = self._con()
+        try:
+            rows = con.execute(
+                "SELECT r.* FROM recoveries r JOIN rebillings b "
+                "ON r.rebilling_id = b.id WHERE b.case_id=?", (case_id,)).fetchall()
+        finally:
+            con.close()
+        keys = ("id", "rebilling_id", "method", "reference",
+                "confirmed_by", "amount_cents", "date", "note",
+                "created_at")
+        return [dict(zip(keys, r)) for r in rows]
 
     def get_proposal(self, pid: str) -> dict | None:
         con = self._con()

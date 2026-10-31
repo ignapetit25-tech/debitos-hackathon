@@ -21,6 +21,51 @@ class ProviderError(Exception):
     pass
 
 
+DEFAULT_MAX_INPUT_CHARS = 12000
+
+
+def apply_input_budget(prompt: str, limit: int | None = None) -> tuple[str, dict]:
+    """Preventive input cap: truncate BEFORE any provider call.
+
+    Limit from `limit`, else IA_MAX_INPUT_CHARS (default 12000 chars).
+    Returns (prompt_to_send, info) where info always carries
+    input_chars/sent_chars/truncated for last_call records. A warning
+    AFTER an overrun is not a limit: truncation happens here.
+    """
+    if limit is None:
+        raw = os.environ.get("IA_MAX_INPUT_CHARS", "")
+        if not raw.strip():
+            limit = DEFAULT_MAX_INPUT_CHARS
+        else:
+            try:
+                limit = int(raw)
+            except ValueError:
+                raise ProviderError(
+                    "IA_MAX_INPUT_CHARS must be a number") from None
+    if limit <= 0:
+        raise ProviderError("IA_MAX_INPUT_CHARS must be > 0")
+    info = {"input_chars": len(prompt), "sent_chars": min(len(prompt), limit),
+            "truncated": len(prompt) > limit}
+    if len(prompt) <= limit:
+        return prompt, info
+    cut = prompt[:limit]
+    mark = f"\n[TRUNCATED by input budget: {len(prompt)}>{limit} chars]"
+    return cut + mark, info
+
+
+def _max_output_tokens(var: str, default: int) -> int:
+    raw = os.environ.get(var, "")
+    if not raw.strip():
+        return default
+    try:
+        val = int(raw)
+    except ValueError:
+        raise ProviderError(f"{var} must be a number") from None
+    if val <= 0:
+        raise ProviderError(f"{var} must be > 0")
+    return val
+
+
 class Provider(abc.ABC):
     name: str = "base"
     last_call: dict  # last-call metadata (no credentials/documents)
@@ -72,18 +117,21 @@ class MetaProvider(Provider):
         )
         self._model = os.environ.get("META_MODEL", "muse-spark-1.3")
         self._default_protocol = os.environ.get("META_PROTOCOL", "responses")
+        self._max_out = _max_output_tokens("META_MAX_OUTPUT_TOKENS", 2000)
         self.last_call = {"provider": "meta", "status": "no-calls"}
 
     def complete_structured(self, prompt, schema, schema_name="response", protocol=None):
         proto = protocol or self._default_protocol
         meta = {"provider": "meta", "requested_model": self._model,
-                "protocol": proto}
+                "protocol": proto, "max_output_tokens": self._max_out,
+                "input_chars": len(prompt)}
         t0 = time.monotonic()
         try:
             if proto == "responses":
                 resp = self._client.responses.create(
                     model=self._model,
                     input=prompt,
+                    max_output_tokens=self._max_out,
                     text={"format": {"type": "json_schema", "name": schema_name,
                                      "schema": schema, "strict": True}},
                 )
@@ -92,6 +140,7 @@ class MetaProvider(Provider):
                 resp = self._client.chat.completions.create(
                     model=self._model,
                     messages=[{"role": "user", "content": prompt}],
+                    max_tokens=self._max_out,
                     response_format={"type": "json_schema",
                                      "json_schema": {"name": schema_name,
                                                      "schema": schema,
@@ -188,17 +237,21 @@ class BasetenProvider(Provider):
             max_retries=0,
         )
         self._model = os.environ.get("BASETEN_MODEL", "meta-models/muse-spark-open-1026")
+        self._max_out = _max_output_tokens("BASETEN_MAX_OUTPUT_TOKENS", 2000)
         self.last_call = {"provider": "baseten", "status": "no-calls"}
 
     def complete_structured(self, prompt, schema, schema_name="response", protocol=None):
         if protocol not in (None, "chat"):
             raise ProviderError(f"Baseten only supports chat, not: {protocol}")
-        meta = {"provider": "baseten", "requested_model": self._model, "protocol": "chat"}
+        meta = {"provider": "baseten", "requested_model": self._model,
+                "protocol": "chat", "max_output_tokens": self._max_out,
+                "input_chars": len(prompt)}
         t0 = time.monotonic()
         try:
             resp = self._client.chat.completions.create(
                 model=self._model,
                 messages=[{"role": "user", "content": prompt}],
+                max_tokens=self._max_out,
                 response_format={"type": "json_schema",
                                  "json_schema": {"name": schema_name, "schema": schema,
                                                  "strict": True}},

@@ -16,7 +16,7 @@ from . import drafts, casefile, rules
 from .contracts import Case, Finding, Proposal, RuleRef
 from .extract import Extraction, extract
 from .money import parse_amount
-from .provider import Provider
+from .provider import Provider, apply_input_budget
 from .synthetic import SyntheticRates, SyntheticRules, SyntheticStore
 
 EXPLANATION_SCHEMA = {
@@ -224,9 +224,12 @@ class Agent:
                          for role, d in sorted(docs.items()))
         )
         try:
+            prompt, budget = apply_input_budget(prompt)
             out = self.provider.complete_structured(prompt, FINDINGS_SCHEMA, "findings")
         except Exception as exc:
             return [], f"deterministic rules without model ({type(exc).__name__})", False
+        if isinstance(getattr(self.provider, "last_call", None), dict):
+            self.provider.last_call.update({f"input_{k}": v for k, v in budget.items()})
         halls = []
         for i, item in enumerate(out.get("findings", []) or []):
             h = self._validate_finding(case.id, i, item, docs, case.lines)

@@ -29,7 +29,10 @@ contracts.py <-- synthetic.py <-- agent.py --> provider.py
   renders as text. Documents = delimited data, never instruction.
   Clinical trigger -> `route_human` with no economic recommendation.
 - `drafts.py`: deterministic templates; the model writes no drafts.
-- `process.py`: priority, business-day SLA, checklist and reply
-  validation. `approvals.followup`: persists the team response.
+- `process.py`: priority, business-day SLA, checklist.
+- `tasks.py`: per-line task circuit (answer with backing,
+  debitos verify/return, per-line resolution, rebilling,
+  recovery evidence). `approvals.followup` is legacy, kept only
+  for old records and unit tests.
 - Boundaries: rule score (int) and extraction confidence (float)
   are distinct fields; proposals and decisions are separate records.

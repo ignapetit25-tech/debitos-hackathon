@@ -24,7 +24,12 @@ ID, latency, usage), proposal and reasoned decision.
 ("Medical Audit" is a human destination team), without forcing
 conclusions. The AI classifies and routes; it never judges
 clinical merit.
-[2:50] Closing: idea declared eligible by Adam Blumenfeld (Cerebral
+[2:40] Task circuit (EXP-2501, fictitious): per-line tasks to
+Billing and Medical Audit, one line with Agreements + Billing, a
+returned insufficient answer, debitos verifications, individual
+per-line resolution, linked rebilling invoice (not money),
+recovery with labeled fictitious evidence.
+[2:55] Closing: idea declared eligible by Adam Blumenfeld (Cerebral
 Valley) on 10/27/2026 for administrative management with fictitious
 data and human approval. Real vs simulated vs pending in
 TEST_REPORT.md. Future implementation is a possibility, not a deployment.

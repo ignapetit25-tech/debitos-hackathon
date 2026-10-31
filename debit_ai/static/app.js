@@ -1,7 +1,7 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const S = {cases: [], case: null, file: null, props: [], prop: null, modelH: [],
-  hist: [], busy: false, selF: -1, provider: null, proc: null, agree: [], fol: null};
+  hist: [], busy: false, selF: -1, provider: null, proc: null, agree: [], circuit: null};
 const fmtMoney = c => "$" + (c / 100).toLocaleString("en-US", {minimumFractionDigits: 2});
 
 function el(tag, cls, text) {
@@ -77,19 +77,20 @@ async function selectCase(id) {
   if (S.busy) return;
   S.case = null; S.file = null; S.props = []; S.prop = null; S.modelH = []; S.hist = [];
   S.selF = -1; S.name = ""; S.note = ""; S.draft = null; S.reviewMsg = "";
-  S.proc = null; S.agree = []; S.fol = null; S.approved = false;
+  S.proc = null; S.agree = []; S.circuit = null;
   renderInbox();
   status($("file-body"), "loading", "Loading casefile…");
   status($("evidence-body"), "loading", "Loading evidence…");
   try {
-    const [cj, ej, pj, hj, pr] = await Promise.all([
+    const [cj, ej, pj, hj, pr, cc] = await Promise.all([
       call("GET", "/api/case?case_id=" + encodeURIComponent(id)),
       call("GET", "/api/casefile?case_id=" + encodeURIComponent(id)),
       call("GET", "/api/proposals?case_id=" + encodeURIComponent(id)),
       call("GET", "/api/history?case_id=" + encodeURIComponent(id)),
-      call("GET", "/api/process?case_id=" + encodeURIComponent(id))]);
+      call("GET", "/api/process?case_id=" + encodeURIComponent(id)),
+      call("GET", "/api/circuit?case_id=" + encodeURIComponent(id))]);
     S.case = cj.case; S.file = ej.casefile; S.props = pj.proposals; S.hist = hj.history;
-    S.proc = pr;
+    S.proc = pr; S.circuit = cc;
     try {
       const cv = await call("GET", "/api/agreements?payer=" + encodeURIComponent(S.case.payer));
       S.agree = cv.agreements;
@@ -280,106 +281,20 @@ function renderProposal(n) {
     d.appendChild(bp2);
   }
   n.appendChild(d);
-  const sg = el("div", "card", null);
-  sg.appendChild(el("h3", null, "Team reply (follow-up)"));
-  if (S.fol) {
-    sg.appendChild(el("p", null, S.fol.decision + " · recoverable " + fmtMoney(S.fol.recoverable_cents) +
-      " · accepted " + fmtMoney(S.fol.accepted_cents)));
-    sg.appendChild(el("p", "muted", "Owner: " + S.fol.owner + " · " + S.fol.date +
-      (S.fol.note ? " · " + S.fol.note : "")));
-  } else {
-    sg.appendChild(el("p", "muted", S.prop ? "No reply recorded." : "Pick a proposal."));
-  }
-  if (S.prop) {
-    const sel = el("select", null, null);
-    sel.id = "fo-dec";
-    sel.setAttribute("aria-label", "Team decision");
-    ["pending", "recovered", "partial", "accepted"].forEach(v =>
-      sel.appendChild(el("option", null, v)));
-    if (S.fol) sel.value = S.fol.decision;
-    sg.appendChild(sel);
-    const r1 = el("div", "row", null);
-    const ri = el("input", null, null);
-    ri.id = "fo-rec"; ri.placeholder = "Recoverable $ (e.g. 12,500.50)";
-    ri.setAttribute("aria-label", "Recoverable amount");
-    ri.value = S.fol ? (S.fol.recoverable_cents / 100).toString() : "";
-    const ai = el("input", null, null);
-    ai.id = "fo-acc"; ai.placeholder = "Accepted $ (e.g. 0)";
-    ai.setAttribute("aria-label", "Accepted amount");
-    ai.value = S.fol ? (S.fol.accepted_cents / 100).toString() : "";
-    r1.appendChild(ri); r1.appendChild(ai);
-    sg.appendChild(r1);
-    const r2 = el("div", "row", null);
-    const rs = el("input", null, null);
-    rs.id = "fo-owner"; rs.placeholder = "Team owner";
-    rs.setAttribute("aria-label", "Owner");
-    rs.value = S.fol ? S.fol.owner : "";
-    const fe = el("input", null, null);
-    fe.id = "fo-date"; fe.type = "date";
-    fe.setAttribute("aria-label", "Reply date");
-    fe.value = S.fol ? S.fol.date : "";
-    r2.appendChild(rs); r2.appendChild(fe);
-    sg.appendChild(r2);
-    const nt = document.createElement("textarea");
-    nt.id = "fo-note"; nt.rows = 2;
-    nt.placeholder = "Note (optional)";
-    nt.setAttribute("aria-label", "Follow-up note");
-    nt.value = S.fol ? (S.fol.note || "") : "";
-    sg.appendChild(nt);
-    if (!S.approved)
-      sg.appendChild(el("p", "muted", "Needs an approved review first."));
-    const bs = el("button", "sec", "Save reply");
-    bs.disabled = S.busy || !S.approved;
-    bs.addEventListener("click", saveFollowup);
-    sg.appendChild(bs);
-    const so = el("div", null, null);
-    so.id = "fo-out";
-    so.setAttribute("aria-live", "polite");
-    sg.appendChild(so);
-  }
-  n.appendChild(sg);
+  renderCircuit(n);
 }
 
 async function selectProp(pid, silent) {
   S.prop = pid || null;
   S.modelH = [];
   S.draft = null;
-  S.fol = null;
-  S.approved = false;
   S.reviewMsg = "";
   if (!pid) { if (!silent) { renderFile(); renderEvidence(); } return; }
   try {
     const j = await call("GET", "/api/findings?proposal_id=" + encodeURIComponent(pid));
     S.modelH = j.findings;
-    const g = await call("GET", "/api/followup?proposal_id=" + encodeURIComponent(pid));
-    S.fol = g.followup;
-    S.approved = !!g.approved;
-  } catch (e) { S.modelH = []; S.fol = null; }
+  } catch (e) { S.modelH = []; }
   if (!silent) { renderFile(); renderEvidence(); }
-}
-
-async function saveFollowup() {
-  if (S.busy || !S.prop || !S.approved) return;
-  const rec = parseMoney($("fo-rec").value);
-  const ace = parseMoney($("fo-acc").value);
-  const resp = $("fo-owner").value.trim();
-  if (rec === null || ace === null) { $("fo-out").textContent = "✕ Invalid amounts: use 12,500.50 format (explicit 0, no negatives)."; return; }
-  if (!resp) { $("fo-out").textContent = "Type the team owner."; return; }
-  S.busy = true;
-  try {
-    const j = await call("POST", "/api/followup", {proposal_id: S.prop,
-      decision: $("fo-dec").value, recoverable_cents: rec, accepted_cents: ace,
-      owner: resp, date: $("fo-date").value, note: $("fo-note").value.trim()});
-    S.fol = j.followup;
-    const hj = await call("GET", "/api/history?case_id=" + encodeURIComponent(S.case.id));
-    S.hist = hj.history;
-    S.busy = false;
-    renderFile(); renderEvidence();
-    $("fo-out").textContent = "✓ Reply recorded.";
-  } catch (e) {
-    S.busy = false;
-    $("fo-out").textContent = "✕ Error: " + e.message;
-  }
 }
 
 async function requestProposal() {
@@ -426,9 +341,6 @@ async function decide(v) {
       verdict: v, note: nota});
     const hj = await call("GET", "/api/history?case_id=" + encodeURIComponent(S.case.id));
     S.hist = hj.history;
-    const g = await call("GET", "/api/followup?proposal_id=" + encodeURIComponent(S.prop));
-    S.fol = g.followup;
-    S.approved = !!g.approved;
     S.busy = false;
     S.reviewMsg = "✓ " + j.decision.verdict.toUpperCase() + " by " +
       j.decision.reviewer + " — " + S.prop + " recorded in history.";
@@ -438,6 +350,251 @@ async function decide(v) {
     S.reviewMsg = "✕ Error recording: " + e.message;
     renderFile();
   }
+}
+
+/* ---------- circuit: tasks, resolution, rebilling, recovery ---------- */
+const TEAMS = ["Agreements", "Billing", "Medical Audit", "Pharmacy"];
+function tid(s) { return String(s).replace(/[^A-Za-z0-9_-]/g, "_"); }
+
+async function refreshCircuit() {
+  const j = await call("GET", "/api/circuit?case_id=" + encodeURIComponent(S.case.id));
+  S.circuit = j;
+  const hj = await call("GET", "/api/history?case_id=" + encodeURIComponent(S.case.id));
+  S.hist = hj.history;
+}
+function circuitMsg(msg) {
+  const o = $("circuit-out");
+  if (o) o.textContent = msg;
+}
+async function circuitPost(url, body, okMsg) {
+  if (S.busy) return;
+  S.busy = true;
+  try {
+    await call("POST", url, body);
+    await refreshCircuit();
+    S.busy = false;
+    renderFile(); renderEvidence();
+    circuitMsg(okMsg);
+  } catch (e) {
+    S.busy = false;
+    circuitMsg("Error: " + e.message);
+  }
+}
+function stateBadge(st) {
+  return badge(st === "verified", st !== "returned", st, st);
+}
+
+function renderCircuit(n) {
+  const sg = el("div", "card", null);
+  sg.appendChild(el("h3", null, "Line tasks & resolution"));
+  const C = S.circuit;
+  if (!C) { sg.appendChild(el("p", "muted", "Loading.")); n.appendChild(sg); return; }
+  if (!C.tasks.length) sg.appendChild(el("p", "muted", "No tasks yet. Create one per line + sector below."));
+  C.tasks.forEach(t => {
+    const d = el("div", "card", null);
+    const h = el("p", null, null);
+    h.appendChild(el("strong", null, t.id + " / L" + t.line_no + " / " + t.team + " "));
+    h.appendChild(stateBadge(t.state));
+    d.appendChild(h);
+    d.appendChild(el("p", "muted", "Motive: " + t.motive));
+    if (t.assignee) d.appendChild(el("p", "muted", "Assignee: " + t.assignee));
+    if (t.state === "assigned" || t.state === "returned") {
+      if (t.state === "returned" && t.return_note)
+        d.appendChild(el("p", null, "Debitos asked: " + t.return_note));
+      if (t.response) d.appendChild(el("p", "muted", "Prior answer: " + t.response));
+      const k = tid(t.id);
+      const r1 = el("div", "row", null);
+      const rname = el("input", null, null);
+      rname.id = "an-" + k + "-responder"; rname.placeholder = "Responder (sector)";
+      rname.setAttribute("aria-label", "Responder");
+      const bref = el("input", null, null);
+      bref.id = "an-" + k + "-backing"; bref.placeholder = "Backing: document or precise reference (required)";
+      bref.setAttribute("aria-label", "Backing reference");
+      r1.appendChild(rname); r1.appendChild(bref);
+      d.appendChild(r1);
+      const resp = document.createElement("textarea");
+      resp.id = "an-" + k + "-response"; resp.rows = 2;
+      resp.placeholder = "Sector response";
+      resp.setAttribute("aria-label", "Response");
+      d.appendChild(resp);
+      const b = el("button", "sec", "Send answer");
+      b.setAttribute("data-task", t.id);
+      b.setAttribute("data-act", "answer");
+      b.disabled = S.busy;
+      b.addEventListener("click", () => circuitPost("/api/task/answer", {
+        task_id: t.id, responder: $("an-" + k + "-responder").value,
+        response: $("an-" + k + "-response").value,
+        backing_ref: $("an-" + k + "-backing").value}, "Answer recorded: pending debitos verification."));
+      d.appendChild(b);
+    } else if (t.state === "pending_verification") {
+      d.appendChild(el("p", null, "Answer by " + t.responder + ": " + t.response));
+      d.appendChild(el("p", null, "Backing: " + t.backing_ref));
+      const k = tid(t.id);
+      const rev = el("input", null, null);
+      rev.id = "vf-" + k + "-reviewer"; rev.placeholder = "Debitos reviewer";
+      rev.setAttribute("aria-label", "Debitos reviewer");
+      d.appendChild(rev);
+      const note = el("input", null, null);
+      note.id = "vf-" + k + "-note"; note.placeholder = "Note (accept) or what is missing (return)";
+      note.setAttribute("aria-label", "Verification note");
+      d.appendChild(note);
+      const r2 = el("div", "row", null);
+      const ba = el("button", "ok", "Verify");
+      ba.setAttribute("data-task", t.id); ba.setAttribute("data-act", "verify");
+      ba.disabled = S.busy;
+      ba.addEventListener("click", () => circuitPost("/api/task/verify", {
+        task_id: t.id, reviewer: $("vf-" + k + "-reviewer").value,
+        note: $("vf-" + k + "-note").value}, "Task verified."));
+      const br = el("button", "no", "Return to sector");
+      br.setAttribute("data-task", t.id); br.setAttribute("data-act", "return");
+      br.disabled = S.busy;
+      br.addEventListener("click", () => circuitPost("/api/task/return", {
+        task_id: t.id, reviewer: $("vf-" + k + "-reviewer").value,
+        missing: $("vf-" + k + "-note").value}, "Task returned to sector."));
+      r2.appendChild(ba); r2.appendChild(br);
+      d.appendChild(r2);
+    } else {
+      d.appendChild(el("p", null, "Verified. Answer by " + t.responder + ": " + t.response));
+      d.appendChild(el("p", "muted", "Backing: " + t.backing_ref));
+    }
+    sg.appendChild(d);
+  });
+  sg.appendChild(el("h3", null, "New task"));
+  const c1 = el("div", "row", null);
+  const ln = el("input", null, null);
+  ln.id = "ct-line"; ln.placeholder = "Line #"; ln.setAttribute("aria-label", "Line number");
+  const tm = el("select", null, null);
+  tm.id = "ct-team"; tm.setAttribute("aria-label", "Team");
+  TEAMS.forEach(v => tm.appendChild(el("option", null, v)));
+  const as = el("input", null, null);
+  as.id = "ct-assignee"; as.placeholder = "Assignee (optional)"; as.setAttribute("aria-label", "Assignee");
+  c1.appendChild(ln); c1.appendChild(tm); c1.appendChild(as);
+  sg.appendChild(c1);
+  const mo = el("input", null, null);
+  mo.id = "ct-motive"; mo.placeholder = "Literal motive this task answers (required)";
+  mo.setAttribute("aria-label", "Motive");
+  sg.appendChild(mo);
+  const bc = el("button", "sec", "Create task");
+  bc.id = "b-task-new"; bc.disabled = S.busy;
+  bc.addEventListener("click", () => {
+    const n = parseInt($("ct-line").value, 10);
+    if (!n) { circuitMsg("Type the line number."); return; }
+    circuitPost("/api/task", {case_id: S.case.id, line_no: n,
+      team: $("ct-team").value, motive: $("ct-motive").value,
+      assignee: $("ct-assignee").value}, "Task created.");
+  });
+  sg.appendChild(bc);
+  sg.appendChild(el("h3", null, "Per-line resolutions"));
+  if (!C.resolutions.length) sg.appendChild(el("p", "muted", "No resolutions."));
+  C.resolutions.forEach(r => {
+    sg.appendChild(el("p", null, "L" + r.line_no + " resolved by " + r.decided_by + ": " + r.decision));
+    if (r.note) sg.appendChild(el("p", "muted", r.note));
+  });
+  const s1 = el("div", "row", null);
+  const sl = el("input", null, null);
+  sl.id = "rs-line"; sl.placeholder = "Line #"; sl.setAttribute("aria-label", "Resolution line");
+  const sd = el("input", null, null);
+  sd.id = "rs-by"; sd.placeholder = "Decided by"; sd.setAttribute("aria-label", "Decided by");
+  s1.appendChild(sl); s1.appendChild(sd);
+  sg.appendChild(s1);
+  const sz = el("input", null, null);
+  sz.id = "rs-decision"; sz.placeholder = "Administrative decision (required)";
+  sz.setAttribute("aria-label", "Decision");
+  sg.appendChild(sz);
+  const bs = el("button", "sec", "Resolve line");
+  bs.id = "b-resolve"; bs.disabled = S.busy;
+  bs.addEventListener("click", () => {
+    const n = parseInt($("rs-line").value, 10);
+    if (!n) { circuitMsg("Type the line number."); return; }
+    circuitPost("/api/resolution", {case_id: S.case.id, line_no: n,
+      decided_by: $("rs-by").value, decision: $("rs-decision").value},
+      "Line resolved (individual; no mass close).");
+  });
+  sg.appendChild(bs);
+  sg.appendChild(el("h3", null, "Rebilling invoices (not recovered money)"));
+  if (!C.rebillings.length) sg.appendChild(el("p", "muted", "No rebillings."));
+  C.rebillings.forEach(r => {
+    sg.appendChild(el("p", null, r.number + " / " + fmtMoney(r.amount_cents) +
+      " / " + r.payer + " / from " + r.resolution_id));
+  });
+  const b1 = el("div", "row", null);
+  const bl = el("input", null, null);
+  bl.id = "rb-line"; bl.placeholder = "Line #"; bl.setAttribute("aria-label", "Rebilling line");
+  const bn = el("input", null, null);
+  bn.id = "rb-number"; bn.placeholder = "New invoice number"; bn.setAttribute("aria-label", "Invoice number");
+  const ba2 = el("input", null, null);
+  ba2.id = "rb-amount"; ba2.placeholder = "Amount $ (e.g. 12,500.50)";
+  ba2.setAttribute("aria-label", "Rebilling amount");
+  b1.appendChild(bl); b1.appendChild(bn); b1.appendChild(ba2);
+  sg.appendChild(b1);
+  const b2 = el("div", "row", null);
+  const bp = el("input", null, null);
+  bp.id = "rb-payer"; bp.placeholder = "Payer"; bp.setAttribute("aria-label", "Payer");
+  const bd = el("input", null, null);
+  bd.id = "rb-date"; bd.type = "date"; bd.setAttribute("aria-label", "Rebilling date");
+  b2.appendChild(bp); b2.appendChild(bd);
+  sg.appendChild(b2);
+  const bb = el("button", "sec", "Record rebilling");
+  bb.id = "b-rebill"; bb.disabled = S.busy;
+  bb.addEventListener("click", () => {
+    const n = parseInt($("rb-line").value, 10);
+    const amt = parseMoney($("rb-amount").value);
+    if (!n) { circuitMsg("Type the line number."); return; }
+    if (amt === null) { circuitMsg("Invalid amount: use 12,500.50 format."); return; }
+    circuitPost("/api/rebilling", {case_id: S.case.id, line_no: n,
+      number: $("rb-number").value, amount_cents: amt,
+      payer: $("rb-payer").value, date: $("rb-date").value},
+      "Rebilling recorded (not recovered money).");
+  });
+  sg.appendChild(bb);
+  sg.appendChild(el("h3", null, "Recovery evidence"));
+  if (!C.recoveries.length) sg.appendChild(el("p", "muted", "No recoveries recorded."));
+  C.recoveries.forEach(r => {
+    sg.appendChild(el("p", null, r.rebilling_id + " via " + r.method + ": " +
+      r.reference + " (confirmed by " + r.confirmed_by + ")"));
+  });
+  if (C.rebillings.length) {
+    const v1 = el("div", "row", null);
+    const vs = el("select", null, null);
+    vs.id = "rc-rebilling"; vs.setAttribute("aria-label", "Rebilling");
+    C.rebillings.forEach(r => vs.appendChild(el("option", null, r.id)));
+    const vm = el("select", null, null);
+    vm.id = "rc-method"; vm.setAttribute("aria-label", "Method");
+    ["credit_note", "rebilling_paid"].forEach(v => vm.appendChild(el("option", null, v)));
+    v1.appendChild(vs); v1.appendChild(vm);
+    sg.appendChild(v1);
+    const v2 = el("div", "row", null);
+    const vr = el("input", null, null);
+    vr.id = "rc-reference"; vr.placeholder = "Evidence reference (required)";
+    vr.setAttribute("aria-label", "Reference");
+    const vc = el("input", null, null);
+    vc.id = "rc-by"; vc.placeholder = "Confirmed by"; vc.setAttribute("aria-label", "Confirmed by");
+    const va = el("input", null, null);
+    va.id = "rc-amount"; va.placeholder = "Observed $ (optional)";
+    va.setAttribute("aria-label", "Observed amount");
+    v2.appendChild(vr); v2.appendChild(vc); v2.appendChild(va);
+    sg.appendChild(v2);
+    const bv = el("button", "sec", "Record recovery");
+    bv.id = "b-recover"; bv.disabled = S.busy;
+    bv.addEventListener("click", () => {
+      const raw = $("rc-amount").value.trim();
+      const amt = raw ? parseMoney(raw) : null;
+      if (raw && amt === null) { circuitMsg("Invalid amount: use 12,500.50 format."); return; }
+      const body = {rebilling_id: $("rc-rebilling").value,
+        method: $("rc-method").value, reference: $("rc-reference").value,
+        confirmed_by: $("rc-by").value};
+      if (amt !== null) body.amount_cents = amt;
+      circuitPost("/api/recovery", body, "Recovery recorded with evidence.");
+    });
+    sg.appendChild(bv);
+  } else {
+    sg.appendChild(el("p", "muted", "Record a rebilling first."));
+  }
+  const so = el("div", null, null);
+  so.id = "circuit-out";
+  so.setAttribute("aria-live", "polite");
+  sg.appendChild(so);
+  n.appendChild(sg);
 }
 
 /* ---------- evidence ---------- */
@@ -506,7 +663,7 @@ function renderEvidence() {
   const evtLast = S.hist[S.hist.length - 1];
   n.appendChild(el("p", "muted", S.hist.length + " events · last: " +
     evtLast[1] + " " + (evtLast[5] || "")));
-  const ICON = {proposal: "✓", review: "✔", followup: "↩", model_call: "◈", gate: "⛔"};
+  const ICON = {proposal: "✓", review: "✔", model_call: "◈", gate: "⛔", task: "→", task_verify: "✔", task_return: "↩", resolution: "●", rebilling: "▸", recovery: "◆"};
   S.hist.filter(h => ICON[h[1]]).forEach(h => {
     const d = el("p", null, null);
     d.appendChild(el("strong", null, ICON[h[1]] + " " + h[1] + " "));

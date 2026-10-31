@@ -58,7 +58,12 @@ def _check_decision_amounts(decision: str, recoverable: int,
 def followup(store: SyntheticStore, proposal_id: str, decision: str,
              recoverable_cents: int, accepted_cents: int,
              owner: str, date: str = "", note: str = "") -> dict:
-    """Team reply: response with amounts, owner and date.
+    """LEGACY (superseded by debit_ai.tasks): team reply with amounts.
+
+    Kept readable for old records and unit tests; it is NOT part of
+    the confirmed circuit and has no UI/API anymore. Do not use for
+    new flows: per-task answers, debitos verification, per-line
+    resolution, rebilling and recovery live in debit_ai.tasks.
 
     Invariants (whole cents):
     - amounts are ints >= 0 and their sum never exceeds the case debit;
