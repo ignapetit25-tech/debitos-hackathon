@@ -94,10 +94,16 @@ payer reasons. "Medical Audit" is a human destination team.
   precise reference) → debitos verifies or returns (prior answer
   kept, missing items stated); answering never closes a task.
   Individual per-line resolution (all tasks verified first, no mass
-  close) → rebilling invoice (NOT recovered money) → recovery
-  evidence (payer credit note or cancelled rebilling invoice).
-  One rebilling per line, one recovery per rebilling; partial or
-  multiple payments are undefined and refused (see TEST_REPORT.md).
+  close) → rebilling invoice (NOT recovered money) → recognition
+  events with explicit issuer (financier vs provider credit note,
+  treasury confirmation, paid rebilling). Partial recognition
+  leaves a visible balance in dispute ("saldo en disputa"), which
+  may arrive as a new debit; duplicate references are refused and
+  ambiguous pairs await human reconciliation (never auto-merged).
+  Terminal "accepted debit" closure (owner recognizes the debit
+  stands) with origin analysis and corrective action. Accounting
+  documents are recorded separately and never substitute the
+  debitos authorization (mismatches stay visible as alerts).
 
 ## Three distinct decisions
 
@@ -114,8 +120,9 @@ IA_PROVIDER=simulated IA_DEMO_DB=/tmp/circuit/demo.db IA_DEMO_PORT=8932 \
   .venv/bin/python -B -m debit_ai.demo_app
 # open http://127.0.0.1:8932/ and pick EXP-2501: 3 lines, 4 tasks
 # (Billing + Medical Audit, Agreements + Billing on L3), one
-# returned answer, verifications, 2 resolutions, 1 rebilling,
-# 1 recovery with fictitious evidence. All actors auto-test-*.
+# returned answer, verifications, 2 resolutions, 1 rebilling with
+# partial recognition ($10,000 of $30,000, $20,000 in dispute),
+# 1 accepted debit. All actors auto-test-*, evidence fictitious.
 ```
 
 ## Install

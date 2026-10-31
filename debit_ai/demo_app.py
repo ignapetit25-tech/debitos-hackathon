@@ -161,11 +161,22 @@ class Handler(BaseHTTPRequestHandler):
                             "due": process.add_business_days(since) if since else None}})
             elif url.path == "/api/circuit":
                 cid = parse_qs(url.query).get("case_id", [""])[0]
+                rbs = self.store.list_rebillings(cid)
                 _json(self, 200, {
                     "tasks": self.store.list_tasks(cid),
                     "resolutions": self.store.list_resolutions(cid),
-                    "rebillings": self.store.list_rebillings(cid),
-                    "recoveries": self.store.list_recoveries(cid)})
+                    "rebillings": rbs,
+                    "recoveries": self.store.list_recoveries(cid),
+                    "recognitions": self.store.list_case_recognitions(cid),
+                    "accepted": self.store.list_accepted(cid),
+                    "accounting_docs": self.store.list_accounting_docs(cid),
+                    "alerts": tasks.circuit_alerts(self.store, cid),
+                    "rebilling_status": {
+                        r["id"]: {
+                            "recognized_cents": tasks.recognized_total(
+                                self.store, r["id"]),
+                            "disputed_cents": tasks.disputed_balance(
+                                self.store, r["id"])} for r in rbs}})
             elif url.path == "/api/findings":
                 pid = parse_qs(url.query).get("proposal_id", [""])[0]
                 if not self.store.get_proposal(pid):
@@ -260,13 +271,31 @@ class Handler(BaseHTTPRequestHandler):
                     body.get("payer", ""), body.get("date", ""),
                     body.get("note", ""))
                 _json(self, 200, {"rebilling": rb})
-            elif self.path == "/api/recovery":
-                rec = tasks.record_recovery(
-                    self.store, body["rebilling_id"], body.get("method", ""),
-                    body.get("reference", ""), body.get("confirmed_by", ""),
-                    body.get("amount_cents"), body.get("date", ""),
-                    body.get("note", ""))
-                _json(self, 200, {"recovery": rec})
+            elif self.path == "/api/recognition":
+                rec = tasks.record_recognition(
+                    self.store, body["rebilling_id"], body.get("kind", ""),
+                    body.get("amount_cents"), body.get("reference", ""),
+                    body.get("confirmed_by", ""), body.get("recorded_by", ""),
+                    body.get("date", ""), body.get("note", ""))
+                _json(self, 200, {"recognition": rec})
+            elif self.path == "/api/reconcile":
+                rec = tasks.reconcile_recognition(
+                    self.store, body["event_id"], body["duplicate_of"],
+                    body.get("reconciled_by", ""), body.get("note", ""))
+                _json(self, 200, {"recognition": rec})
+            elif self.path == "/api/accept-debit":
+                acc = tasks.accept_debit(
+                    self.store, body["case_id"], body["line_no"],
+                    body.get("accepted_by", ""), body.get("origin", ""),
+                    body.get("corrective", ""))
+                _json(self, 200, {"accepted": acc})
+            elif self.path == "/api/accounting-doc":
+                doc = tasks.record_accounting_doc(
+                    self.store, body["case_id"], body.get("line_no"),
+                    body.get("kind", ""), body.get("number", ""),
+                    body.get("recorded_by", ""), body.get("amount_cents"),
+                    body.get("date", ""), body.get("note", ""))
+                _json(self, 200, {"accounting_doc": doc})
             elif self.path == "/api/review":
                 dec = approvals.review(
                     self.store, body["proposal_id"], body.get("reviewer", ""),

@@ -66,6 +66,21 @@ CREATE TABLE IF NOT EXISTS recoveries (
   reference TEXT, confirmed_by TEXT, amount_cents INTEGER,
   date TEXT DEFAULT '', note TEXT DEFAULT '',
   created_at TEXT DEFAULT '');
+CREATE TABLE IF NOT EXISTS recognitions (
+  id TEXT PRIMARY KEY, rebilling_id TEXT, kind TEXT, amount_cents INTEGER,
+  reference TEXT, confirmed_by TEXT, recorded_by TEXT,
+  date TEXT DEFAULT '', note TEXT DEFAULT '',
+  duplicate_of TEXT DEFAULT '', created_at TEXT DEFAULT '');
+CREATE TABLE IF NOT EXISTS accepted_debits (
+  id TEXT PRIMARY KEY, case_id TEXT, line_no INTEGER,
+  accepted_by TEXT, origin TEXT, corrective TEXT DEFAULT '',
+  created_at TEXT DEFAULT '',
+  UNIQUE (case_id, line_no));
+CREATE TABLE IF NOT EXISTS accounting_docs (
+  id TEXT PRIMARY KEY, case_id TEXT, line_no INTEGER,
+  kind TEXT, number TEXT, amount_cents INTEGER,
+  date TEXT DEFAULT '', note TEXT DEFAULT '',
+  recorded_by TEXT DEFAULT '', created_at TEXT DEFAULT '');
 """
 
 
@@ -499,6 +514,149 @@ class SyntheticStore(CaseStore):
             con.close()
         keys = ("id", "rebilling_id", "method", "reference",
                 "confirmed_by", "amount_cents", "date", "note",
+                "created_at")
+        return [dict(zip(keys, r)) for r in rows]
+
+    def new_recognition_id(self, rebilling_id: str) -> str:
+        pref = f"RC-{rebilling_id}-"
+        con = self._con()
+        try:
+            n = con.execute("SELECT COUNT(*) FROM recognitions "
+                            "WHERE rebilling_id=?", (rebilling_id,)).fetchone()[0]
+        finally:
+            con.close()
+        return f"{pref}{n + 1}"
+
+    def save_recognition(self, rec: dict) -> None:
+        con = self._con()
+        try:
+            con.execute("INSERT INTO recognitions VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        (rec["id"], rec["rebilling_id"], rec["kind"],
+                         rec["amount_cents"], rec["reference"],
+                         rec["confirmed_by"], rec["recorded_by"],
+                         rec.get("date", ""), rec.get("note", ""),
+                         rec.get("duplicate_of", ""),
+                         rec.get("created_at", "")))
+            con.commit()
+        finally:
+            con.close()
+
+    def get_recognition(self, rid: str) -> dict | None:
+        con = self._con()
+        try:
+            row = con.execute("SELECT * FROM recognitions WHERE id=?",
+                              (rid,)).fetchone()
+        finally:
+            con.close()
+        if not row:
+            return None
+        return dict(zip(("id", "rebilling_id", "kind", "amount_cents",
+                         "reference", "confirmed_by", "recorded_by",
+                         "date", "note", "duplicate_of",
+                         "created_at"), row))
+
+    def list_recognitions(self, rebilling_id: str) -> list[dict]:
+        con = self._con()
+        try:
+            rows = con.execute("SELECT * FROM recognitions WHERE rebilling_id=?",
+                               (rebilling_id,)).fetchall()
+        finally:
+            con.close()
+        keys = ("id", "rebilling_id", "kind", "amount_cents", "reference",
+                "confirmed_by", "recorded_by", "date", "note",
+                "duplicate_of", "created_at")
+        return [dict(zip(keys, r)) for r in rows]
+
+    def list_case_recognitions(self, case_id: str) -> list[dict]:
+        con = self._con()
+        try:
+            rows = con.execute(
+                "SELECT r.* FROM recognitions r JOIN rebillings b "
+                "ON r.rebilling_id = b.id WHERE b.case_id=?", (case_id,)).fetchall()
+        finally:
+            con.close()
+        keys = ("id", "rebilling_id", "kind", "amount_cents", "reference",
+                "confirmed_by", "recorded_by", "date", "note",
+                "duplicate_of", "created_at")
+        return [dict(zip(keys, r)) for r in rows]
+
+    def mark_recognition_duplicate(self, rid: str, duplicate_of: str) -> None:
+        con = self._con()
+        try:
+            con.execute("UPDATE recognitions SET duplicate_of=? WHERE id=?",
+                        (duplicate_of, rid))
+            con.commit()
+        finally:
+            con.close()
+
+    def save_accepted(self, acc: dict) -> None:
+        con = self._con()
+        try:
+            con.execute("INSERT INTO accepted_debits VALUES (?,?,?,?,?,?,?)",
+                        (acc["id"], acc["case_id"], acc["line_no"],
+                         acc["accepted_by"], acc["origin"],
+                         acc.get("corrective", ""),
+                         acc.get("created_at", "")))
+            con.commit()
+        finally:
+            con.close()
+
+    def get_accepted(self, case_id: str, line_no: int) -> dict | None:
+        con = self._con()
+        try:
+            row = con.execute("SELECT * FROM accepted_debits WHERE case_id=? "
+                              "AND line_no=?", (case_id, line_no)).fetchone()
+        finally:
+            con.close()
+        if not row:
+            return None
+        return dict(zip(("id", "case_id", "line_no", "accepted_by",
+                         "origin", "corrective", "created_at"), row))
+
+    def list_accepted(self, case_id: str) -> list[dict]:
+        con = self._con()
+        try:
+            rows = con.execute("SELECT * FROM accepted_debits WHERE case_id=?",
+                               (case_id,)).fetchall()
+        finally:
+            con.close()
+        keys = ("id", "case_id", "line_no", "accepted_by", "origin",
+                "corrective", "created_at")
+        return sorted((dict(zip(keys, r)) for r in rows),
+                      key=lambda d: d["line_no"])
+
+    def new_accounting_id(self, case_id: str) -> str:
+        pref = f"AD-{case_id}-"
+        con = self._con()
+        try:
+            n = con.execute("SELECT COUNT(*) FROM accounting_docs "
+                            "WHERE case_id=?", (case_id,)).fetchone()[0]
+        finally:
+            con.close()
+        return f"{pref}{n + 1}"
+
+    def save_accounting_doc(self, doc: dict) -> None:
+        con = self._con()
+        try:
+            con.execute("INSERT INTO accounting_docs VALUES (?,?,?,?,?,?,?,?,?,?)",
+                        (doc["id"], doc["case_id"], doc.get("line_no"),
+                         doc["kind"], doc["number"], doc.get("amount_cents"),
+                         doc.get("date", ""), doc.get("note", ""),
+                         doc.get("recorded_by", ""),
+                         doc.get("created_at", "")))
+            con.commit()
+        finally:
+            con.close()
+
+    def list_accounting_docs(self, case_id: str) -> list[dict]:
+        con = self._con()
+        try:
+            rows = con.execute("SELECT * FROM accounting_docs WHERE case_id=?",
+                               (case_id,)).fetchall()
+        finally:
+            con.close()
+        keys = ("id", "case_id", "line_no", "kind", "number",
+                "amount_cents", "date", "note", "recorded_by",
                 "created_at")
         return [dict(zip(keys, r)) for r in rows]
 

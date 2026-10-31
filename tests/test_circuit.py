@@ -175,3 +175,183 @@ class TestRebillingRecovery(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _rebilled(s, line=1, amount=30000):
+    t = tasks.create_task(s, "C1", line, "Billing", "m")
+    tasks.answer_task(s, t["id"], SEC, "r", "b")
+    tasks.verify_task(s, t["id"], DEB)
+    tasks.resolve_line(s, "C1", line, DEB, "d")
+    return tasks.record_rebilling(s, "C1", line, f"F-1-R{line}", amount, "P")
+
+
+class TestRecognition(unittest.TestCase):
+    def test_partial_recognition_and_dispute(self):
+        s = _store()
+        rb = _rebilled(s)
+        rec = tasks.record_recognition(s, rb["id"], "financier_credit_note",
+                                       10000, "NC-1", "P", DEB, "2026-09-20")
+        self.assertEqual(rec["id"], f"RC-{rb['id']}-1")
+        self.assertEqual(tasks.recognized_total(s, rb["id"]), 10000)
+        self.assertEqual(tasks.disputed_balance(s, rb["id"]), 20000)
+        det = [h[2] for h in s.history("C1") if h[1] == "recognition"][0]
+        self.assertIn("balance in dispute", det)
+        self.assertIn("may arrive as a new debit", det)
+
+    def test_treasury_confirmation_flags_ambiguous_pair(self):
+        s = _store()
+        rb = _rebilled(s)
+        tasks.record_recognition(s, rb["id"], "financier_credit_note",
+                                 10000, "NC-1", "P", DEB, "2026-09-20")
+        self.assertFalse(tasks.needs_reconciliation(s, rb["id"]))
+        tasks.record_recognition(s, rb["id"], "treasury_confirmation",
+                                 10000, "PAY-7", "Treasury", DEB, "2026-09-21")
+        self.assertTrue(tasks.needs_reconciliation(s, rb["id"]))
+        self.assertEqual(tasks.recognized_total(s, rb["id"]), 20000)
+
+    def test_duplicate_reference_refused(self):
+        s = _store()
+        rb = _rebilled(s)
+        tasks.record_recognition(s, rb["id"], "financier_credit_note",
+                                 10000, "NC-1", "P", DEB, "2026-09-20")
+        with self.assertRaisesRegex(ValueError, "already recorded"):
+            tasks.record_recognition(s, rb["id"], "treasury_confirmation",
+                                     10000, "  nc-1 ", "T", DEB, "2026-09-21")
+        self.assertEqual(tasks.recognized_total(s, rb["id"]), 10000)
+
+    def test_reconcile_excludes_duplicate(self):
+        s = _store()
+        rb = _rebilled(s)
+        a = tasks.record_recognition(s, rb["id"], "financier_credit_note",
+                                     30000, "NC-1", "P", DEB, "2026-09-20")
+        b = tasks.record_recognition(s, rb["id"], "treasury_confirmation",
+                                     30000, "PAY-1", "Treasury", DEB,
+                                     "2026-09-21")
+        tasks.reconcile_recognition(s, b["id"], a["id"], DEB, "same payment")
+        self.assertEqual(tasks.recognized_total(s, rb["id"]), 30000)
+        self.assertFalse(tasks.needs_reconciliation(s, rb["id"]))
+        self.assertIn("reconcile", [h[1] for h in s.history("C1")])
+
+    def test_reconcile_guards(self):
+        s = _store()
+        rb = _rebilled(s)
+        a = tasks.record_recognition(s, rb["id"], "financier_credit_note",
+                                     10000, "NC-1", "P", DEB, "2026-09-20")
+        with self.assertRaises(ValueError):
+            tasks.reconcile_recognition(s, a["id"], a["id"], DEB)
+        with self.assertRaises(KeyError):
+            tasks.reconcile_recognition(s, "RC-X", a["id"], DEB)
+        rb2 = _rebilled(s, line=2, amount=18500)
+        c = tasks.record_recognition(s, rb2["id"], "treasury_confirmation",
+                                     18500, "PAY-2", "T", DEB, "2026-09-21")
+        with self.assertRaisesRegex(ValueError, "different rebillings"):
+            tasks.reconcile_recognition(s, c["id"], a["id"], DEB)
+        b = tasks.record_recognition(s, rb["id"], "treasury_confirmation",
+                                     10000, "PAY-9", "T", DEB, "2026-09-21")
+        tasks.reconcile_recognition(s, b["id"], a["id"], DEB)
+        d = tasks.record_recognition(s, rb["id"], "treasury_confirmation",
+                                     5000, "PAY-10", "T", DEB, "2026-09-22")
+        with self.assertRaisesRegex(ValueError, "itself a duplicate"):
+            tasks.reconcile_recognition(s, d["id"], b["id"], DEB)
+
+    def test_over_recognition_alert(self):
+        s = _store()
+        rb = _rebilled(s)
+        tasks.record_recognition(s, rb["id"], "financier_credit_note",
+                                 30000, "NC-1", "P", DEB, "2026-09-20")
+        tasks.record_recognition(s, rb["id"], "treasury_confirmation",
+                                 5000, "PAY-2", "T", DEB, "2026-09-21")
+        alerts = tasks.circuit_alerts(s, "C1")
+        self.assertTrue(any("exceeds rebilled" in a for a in alerts))
+        self.assertTrue(any("reconcile" in a for a in alerts))
+
+    def test_recognition_validates(self):
+        s = _store()
+        rb = _rebilled(s)
+        with self.assertRaises(KeyError):
+            tasks.record_recognition(s, "RB-X", "financier_credit_note",
+                                     1, "R", "P", DEB, "2026-09-20")
+        with self.assertRaises(ValueError):
+            tasks.record_recognition(s, rb["id"], "wire", 1, "R", "P",
+                                     DEB, "2026-09-20")
+        with self.assertRaises(ValueError):
+            tasks.record_recognition(s, rb["id"], "financier_credit_note",
+                                     -5, "R", "P", DEB, "2026-09-20")
+
+
+class TestAcceptedDebit(unittest.TestCase):
+    def test_accept_closes_line(self):
+        s = _store()
+        t = tasks.create_task(s, "C1", 1, "Billing", "m")
+        tasks.answer_task(s, t["id"], SEC, "r", "b")
+        tasks.verify_task(s, t["id"], DEB)
+        acc = tasks.accept_debit(s, "C1", 1, DEB, "billed twice by us",
+                                 "pre-invoice checklist")
+        self.assertEqual(acc["id"], "A-C1-L1")
+        with self.assertRaisesRegex(ValueError, "accepted debit"):
+            tasks.resolve_line(s, "C1", 1, DEB, "x")
+        self.assertIn("accepted", [h[1] for h in s.history("C1")])
+
+    def test_accept_blocks_rebilling(self):
+        s = _store()
+        t = tasks.create_task(s, "C1", 1, "Billing", "m")
+        tasks.answer_task(s, t["id"], SEC, "r", "b")
+        tasks.verify_task(s, t["id"], DEB)
+        tasks.accept_debit(s, "C1", 1, DEB, "origin")
+        with self.assertRaises(ValueError):
+            tasks.record_rebilling(s, "C1", 1, "F-1-R", 30000, "P")
+
+    def test_accept_guards(self):
+        s = _store()
+        with self.assertRaises(ValueError):
+            tasks.accept_debit(s, "C1", 1, DEB, "o")
+        t = tasks.create_task(s, "C1", 1, "Billing", "m")
+        with self.assertRaisesRegex(ValueError, t["id"]):
+            tasks.accept_debit(s, "C1", 1, DEB, "o")
+        tasks.answer_task(s, t["id"], SEC, "r", "b")
+        tasks.verify_task(s, t["id"], DEB)
+        tasks.accept_debit(s, "C1", 1, DEB, "o")
+        with self.assertRaisesRegex(ValueError, "already closed"):
+            tasks.accept_debit(s, "C1", 1, DEB, "o2")
+        with self.assertRaises(ValueError):
+            tasks.accept_debit(s, "C1", 1, "  ", "o")
+        with self.assertRaises(KeyError):
+            tasks.accept_debit(s, "C1", 9, DEB, "o")
+
+
+class TestAccountingDocs(unittest.TestCase):
+    def test_doc_without_closure_alerts(self):
+        s = _store()
+        t = tasks.create_task(s, "C1", 1, "Billing", "m")
+        tasks.answer_task(s, t["id"], SEC, "r", "b")
+        tasks.verify_task(s, t["id"], DEB)
+        tasks.record_accounting_doc(s, "C1", 1, "provider_credit_note",
+                                    "NC-CONT-5", "auto-test-books")
+        alerts = tasks.circuit_alerts(s, "C1")
+        self.assertTrue(any("without debitos closure" in a for a in alerts))
+        tasks.resolve_line(s, "C1", 1, DEB, "d")
+        self.assertFalse([a for a in tasks.circuit_alerts(s, "C1")
+                          if "NC-CONT-5" in a])
+
+    def test_doc_never_substitutes_authorization(self):
+        s = _store()
+        t = tasks.create_task(s, "C1", 1, "Billing", "m")
+        tasks.answer_task(s, t["id"], SEC, "r", "b")
+        tasks.verify_task(s, t["id"], DEB)
+        tasks.record_accounting_doc(s, "C1", None, "provider_credit_note",
+                                    "NC-CONT-9", "auto-test-books")
+        with self.assertRaises(ValueError):  # still needs resolution
+            tasks.record_rebilling(s, "C1", 1, "F-1-R", 30000, "P")
+        self.assertTrue(any("without debitos resolution" in a
+                            for a in tasks.circuit_alerts(s, "C1")))
+
+    def test_doc_validates(self):
+        s = _store()
+        with self.assertRaises(KeyError):
+            tasks.record_accounting_doc(s, "NOPE", None,
+                                        "provider_credit_note", "N", "R")
+        with self.assertRaises(KeyError):
+            tasks.record_accounting_doc(s, "C1", 99, "provider_credit_note",
+                                        "N", "R")
+        with self.assertRaises(ValueError):
+            tasks.record_accounting_doc(s, "C1", None, "invoice", "N", "R")

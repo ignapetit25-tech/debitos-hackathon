@@ -181,3 +181,62 @@ class TestAgentEnforcesInputBudget(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCoverageTransparency(unittest.TestCase):
+    def _case_with_doc(self, text):
+        db = tempfile.mktemp(suffix=".db")
+        s = SyntheticStore(db)
+        s.seed_case(Case("C9", "P", "F-9",
+                         (LineItem(1, "PR", "m", 100, 0),), 100))
+        s.add_document("C9", "invoice", "f.pdf", 1, text)
+        return s
+
+    def test_truncated_run_marks_partial(self):
+        _Env(self)
+        os.environ["IA_MAX_INPUT_CHARS"] = "2000"
+
+        class Cap:
+            name = "cap"
+
+            def __init__(self):
+                self.last_call = {"provider": "cap"}
+
+            def complete_structured(self, prompt, schema, schema_name="r",
+                                    protocol=None):
+                return {"findings": [{
+                    "line_no": 1, "kind": "backed_difference",
+                    "document": "invoice", "page": 1,
+                    "excerpt": "EVIDENCE", "interpretation": "i",
+                    "limitations": ""}]}
+
+        s = self._case_with_doc("EVIDENCE " * 5000)
+        agent = Agent(s, Cap())
+        prop = agent.propose("C9")
+        self.assertIn("PARTIAL INPUT", prop.explanation)
+        cov = agent.provider.last_call["input_coverage"]
+        self.assertIn("TRUNCATED", cov)
+        self.assertIn("invoice", cov)
+        det = [h[2] for h in s.history("C9") if h[1] == "model_call"][0]
+        self.assertIn("coverage=", det)
+        self.assertIn("TRUNCATED", det)
+
+    def test_full_coverage_recorded(self):
+        _Env(self)
+
+        class Cap:
+            name = "cap"
+
+            def __init__(self):
+                self.last_call = {"provider": "cap"}
+
+            def complete_structured(self, prompt, schema, schema_name="r",
+                                    protocol=None):
+                return {"findings": []}
+
+        s = self._case_with_doc("short text")
+        agent = Agent(s, Cap())
+        prop = agent.propose("C9")
+        self.assertNotIn("PARTIAL INPUT", prop.explanation)
+        self.assertIn("invoice", agent.provider.last_call["input_coverage"])
+        self.assertFalse(agent.provider.last_call["input_truncated"])

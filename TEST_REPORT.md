@@ -40,7 +40,7 @@ fixtures only, history 0 — the honest empty state).
 ## Deterministic metrics (no model)
 
 Run (local environment):
-- Offline suite: 100 tests OK, 2 live skipped (gated by
+- Offline suite: 115 tests OK, 2 live skipped (gated by
   `META_LIVE=1` / `BASETEN_LIVE=1`, off by default).
   Stages 1-4 added: strict money-input vectors (Node, 25/25),
   post-model gate, neutral routing (no merit conclusions),
@@ -48,14 +48,18 @@ Run (local environment):
   per-action drafts, numeric versions.
   Post-incident: 9 protection tests (explicit destination,
   fail-if-exists, active-DB guard, verified backup roundtrip).
-  Circuit: 13 tests (task lifecycle, answer/verify/return guards,
-  per-line resolution, rebilling link, recovery evidence, no
-  amount-derived status) + 7 provider-limit tests (input
-  truncation before any call, output token caps passed to Meta
-  responses/chat and Baseten chat, stubbed clients, 0 network).
+  Circuit: 26 tests (task lifecycle, answer/verify/return guards,
+  per-line resolution, rebilling link, partial recognition with
+  issuer, dispute balance, duplicate refusal, reconciliation,
+  accepted-debit closure, accounting docs with authorization-gap
+  alerts, no amount-derived status) + 9 provider-limit tests
+  (input truncation before any call, output token caps passed to
+  Meta responses/chat and Baseten chat, coverage transparency in
+  model_call and proposal, stubbed clients, 0 network).
   The legacy reply endpoint/UI (`pending/recovered/accepted/
-  partial`) was REMOVED as a validated definition; its library
-  function stays only for old records and unit tests.
+  partial`) and the generic single-recovery endpoint were REMOVED
+  as validated definitions; their library functions stay only
+  for old records and unit tests.
   Package `debit_ai`, English API/UI; Spanish kept only in
   fictitious domain text.
 - Baseten: implemented (`BasetenProvider`, minimal probe and
@@ -94,10 +98,16 @@ Run (local environment):
   checklist (lines, sums, copays, agreement, owner).
   Task circuit (confirmed): tasks per line + sector; answer with
   backing → debitos verify/return; per-line resolution; rebilling
-  (not money); recovery evidence. Fictitious demo case EXP-2501
-  (`tools/demo_circuit.py`, all actors auto-test-*): 3 lines,
-  4 tasks, 1 return, 2 resolutions, 1 rebilling, 1 recovery
-  labeled FICTITIOUS. Shot `docs/shots/05-process.png`.
+  (not money); recognition events with explicit issuer; balance
+  in dispute ("saldo en disputa", agent-proposed name awaiting
+  owner confirmation); accepted-debit terminal closure; separate
+  accounting docs with alerts. Multi-invoice credit notes were
+  ruled OUT by the owner (modeling error, not implemented).
+  Fictitious demo case EXP-2501 (`tools/demo_circuit.py`, all
+  actors auto-test-*): 3 lines, 4 tasks, 1 return, 2 resolutions,
+  1 rebilling with partial recognition ($10,000 of $30,000,
+  $20,000 disputed), 1 accepted debit. Shot
+  `docs/shots/05-process.png`.
 - Synthetic evaluation over 7 controlled cases: extraction 7/7,
   routing 7/7, abstention 7/7 (includes 1 scanned PDF with
   spa OCR, confidence 0.92). "Abstention 7/7" means: routed to a human
@@ -128,18 +138,23 @@ Run (local environment):
   fallen provider → DEGRADED with the deterministic casefile intact.
 - UI verified in real engines (jsdom probes + Chromium screenshots
   against a scratch server, simulated provider, 0 paid calls):
-  circuit probe 17/17 (create → answer guards → verify/return →
-  resolution guards → rebilling → recovery, prebuilt circuit case,
-  labeled evidence), review probe 9/9, base probe OK;
-  0 JS/console errors; 0 innerHTML uses. The old followup probe
-  was retired with its endpoint.
+  circuit probe 22/22 in Chromium (Playwright; the /tmp jsdom
+  harness was lost to a tmp cleanup, probes re-implemented):
+  create → answer guards → verify → resolve → rebill →
+  partial recognition with dispute → duplicate refusal →
+  ambiguity alert → reconcile → accepted debit with closure
+  guards → accounting-doc alert, prebuilt circuit case;
+  0 console errors; 0 innerHTML uses. Review UI code unchanged
+  since its 9/9; review backend re-verified via API (propose →
+  approve → single review event).
 - Shots `docs/shots/01-inbox.png` … `06-polish.png` (Chromium,
   English UI, simulated provider, 0 console errors, 0 inferences):
   01 inbox (9 cases) with states and amounts; 02 `EXP-900`
   casefile (summary, totals, neutral checks, open-document
   buttons); 03 evidence with a selected finding; 04 undecided
   review form; 05 `EXP-2501` circuit (verified tasks, resolutions,
-  rebilling, labeled recovery); 06 final state.
+  rebilling, partial recognition with $20,000 dispute, accepted
+  debit, accounting section); 06 final state.
 - Legacy taxonomy note: proposals recorded before the domain
   correction carry action `claim`; drafts and UI render them with
   the current referral template. Old records are kept verbatim.
@@ -187,8 +202,11 @@ Run (local environment):
 Pending:
 - Real JSON adapter (implemented, disabled, unverified).
 - OCR on documents outside the controlled fixtures.
-- Circuit exceptions (NOT defined; refused in code until the owner
-  rules with a concrete example): multiple rebillings for one
-  line; multiple/partial payments or credit notes against one
-  rebilling; splitting one receipt across invoices/lines; joint
-  multi-line resolutions (single-line only).
+- Circuit exceptions still open: shared-audit mechanics when a
+  disputed balance returns as a new debit (who initiates, who
+  takes part, how it concludes — ask with a concrete example
+  before automating the transition); joint multi-line resolutions
+  (single-line only, unconfirmed); "saldo en disputa" name
+  (agent-proposed, owner to confirm/rename). Multiple documented
+  events per rebilling are now ALLOWED (partial recognition);
+  multi-invoice notes were ruled out (owner: modeling error).

@@ -11,7 +11,9 @@ the confirmed circuit: multi-line file, Billing + Medical Audit
 tasks, a line with complementary Agreements + Billing tasks, an
 insufficient answer returned by debitos, a corrected answer with
 verifiable backing, per-line resolutions, a linked rebilling
-invoice and a recovery with clearly labeled fictitious evidence.
+invoice with a PARTIAL recognition (balance in dispute shown),
+and an accepted-debit closure with origin analysis. All evidence
+is clearly labeled fictitious.
 
 ALL actors are auto-test-* (sector responders, debitos
 verification, resolution, recovery). This never touches the live
@@ -86,23 +88,30 @@ def build(db: str) -> dict:
                       "Correo 2026-08-19, autorización AUT-2500, "
                       "folio 1 (ficticio)")
     tasks.verify_task(s, t4["id"], DEB, "Respaldo verificado.")
-    # Individual per-line resolutions (L2 stays verified-but-unresolved
-    # to show the intermediate state).
+    # Individual per-line resolutions.
     tasks.resolve_line(s, CASE, 1, DEB,
                        "Refacturar práctica con autorización AUT-2501.")
     tasks.resolve_line(s, CASE, 3, DEB,
                        "Refacturar con presupuesto P-1186 y "
                        "autorización AUT-2500.")
+    # L2 closes as accepted debit (verified, but the debit stands).
+    tasks.accept_debit(s, CASE, 2, DEB,
+                       "Detail never existed; billed in error.",
+                       "Pre-invoice checklist for descartables.")
+    # Partial recognition on L1: 10000 of 30000 -> balance in dispute.
     rb = tasks.record_rebilling(s, CASE, 1, "F-2501-R1", 3000000,
                                 "OS FICTICIA ANDINA", "2026-09-02")
-    tasks.record_recovery(s, rb["id"], "credit_note", "NC-8810 (FICTICIA)",
-                          DEB, 3000000, "2026-09-20",
-                          "Fictitious evidence for demo.")
+    tasks.record_recognition(s, rb["id"], "financier_credit_note",
+                             1000000, "NC-8810 (FICTICIA)",
+                             "OS FICTICIA ANDINA", DEB, "2026-09-20",
+                             "Fictitious evidence for demo.")
     return {"case": CASE,
             "tasks": len(s.list_tasks(CASE)),
             "resolutions": len(s.list_resolutions(CASE)),
             "rebillings": len(s.list_rebillings(CASE)),
-            "recoveries": len(s.list_recoveries(CASE)),
+            "recognitions": len(s.list_case_recognitions(CASE)),
+            "accepted": len(s.list_accepted(CASE)),
+            "disputed_cents": tasks.disputed_balance(s, rb["id"]),
             "returns": len(tasks.task_returns(s, CASE))}
 
 
@@ -118,7 +127,9 @@ def main(argv=None) -> dict:
     print(f"circuit demo ready: {summary['case']} -> {ns.db} "
           f"({summary['tasks']} tasks, {summary['returns']} return(s), "
           f"{summary['resolutions']} resolutions, {summary['rebillings']} "
-          f"rebilling(s), {summary['recoveries']} recovery record(s))")
+          f"rebilling(s), {summary['recognitions']} recognition(s), "
+          f"{summary['accepted']} accepted, disputed "
+          f"{summary['disputed_cents']}c)")
     return summary
 
 

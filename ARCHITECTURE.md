@@ -32,7 +32,9 @@ contracts.py <-- synthetic.py <-- agent.py --> provider.py
 - `process.py`: priority, business-day SLA, checklist.
 - `tasks.py`: per-line task circuit (answer with backing,
   debitos verify/return, per-line resolution, rebilling,
-  recovery evidence). `approvals.followup` is legacy, kept only
-  for old records and unit tests.
+  recognition events with issuer, dispute balance, accepted-debit
+  closure, accounting docs, reconciliation, alerts).
+  `approvals.followup` and `tasks.record_recovery` are legacy,
+  kept only for old records and unit tests.
 - Boundaries: rule score (int) and extraction confidence (float)
   are distinct fields; proposals and decisions are separate records.

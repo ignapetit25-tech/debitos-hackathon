@@ -69,6 +69,23 @@ def _doc_block(role: str, text: str) -> str:
     shown = text[:1500]
     return f"--- {role} [{len(shown)}/{len(text)} chars] ---\n{shown}"
 
+
+def _coverage_note(docs: dict, budget: dict) -> str:
+    """What the model actually received: per-document excerpts, pages,
+    applied budget, and whether content was cut. A cut is never
+    silent: dependent conclusions are marked partial."""
+    det = ", ".join(
+        f"{role} {min(1500, len(d.get('text', '')))}/"
+        f"{len(d.get('text', ''))}ch "
+        f"{len(d.get('page_texts', []) or ['?'])}p"
+        for role, d in sorted(docs.items())) or "no documents"
+    note = (f"included [{det}]; input budget "
+            f"{budget['sent_chars']}/{budget['input_chars']}ch")
+    if budget["truncated"]:
+        note += (" TRUNCATED: only included excerpts were evaluated; "
+                 "anything outside was NOT evaluated")
+    return note
+
 class Agent:
     def __init__(self, store: SyntheticStore, provider: Provider) -> None:
         self.store = store
@@ -225,18 +242,24 @@ class Agent:
         )
         try:
             prompt, budget = apply_input_budget(prompt)
+            coverage = _coverage_note(docs, budget)
             out = self.provider.complete_structured(prompt, FINDINGS_SCHEMA, "findings")
         except Exception as exc:
             return [], f"deterministic rules without model ({type(exc).__name__})", False
         if isinstance(getattr(self.provider, "last_call", None), dict):
-            self.provider.last_call.update({f"input_{k}": v for k, v in budget.items()})
+            self.provider.last_call.update(
+                {f"input_{k}": v for k, v in budget.items()} |
+                {"input_coverage": coverage})
         halls = []
         for i, item in enumerate(out.get("findings", []) or []):
             h = self._validate_finding(case.id, i, item, docs, case.lines)
             if h is not None:
                 halls.append(h)
         if not halls:
-            return [], "model yielded no usable findings (see model_call)", False
+            txt0 = "model yielded no usable findings (see model_call)"
+            if budget["truncated"]:
+                txt0 += " [PARTIAL INPUT: only included excerpts evaluated]"
+            return [], txt0, False
         ver = [h for h in halls if h.verified]
         unver = [h for h in halls if not h.verified]
         txt = f"{len(ver)} verified finding(s)"
@@ -246,6 +269,8 @@ class Agent:
         if unver:
             txt += (f"; {len(unver)} CITATION UNVERIFIED "
                     f"(not used as evidence)")
+        if budget["truncated"]:
+            txt += " [PARTIAL INPUT: only included excerpts evaluated]"
         return halls, txt, True
 
     def _validate_finding(self, case_id, i, item, docs, case_lines):
@@ -285,7 +310,8 @@ class Agent:
                   f"response_id={m.get('response_id', '-')} "
                   f"status={m.get('status', '?')} "
                   f"latency_ms={m.get('latency_ms', '-')} "
-                  f"usage={m.get('usage', {})}")
+                  f"usage={m.get('usage', {})} "
+                  f"coverage={m.get('input_coverage', '-')}")
         self.store.log(
             case_id, "model_call", detail,
             before="no call",

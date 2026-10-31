@@ -547,11 +547,26 @@ function renderCircuit(n) {
       "Rebilling recorded (not recovered money).");
   });
   sg.appendChild(bb);
-  sg.appendChild(el("h3", null, "Recovery evidence"));
-  if (!C.recoveries.length) sg.appendChild(el("p", "muted", "No recoveries recorded."));
-  C.recoveries.forEach(r => {
-    sg.appendChild(el("p", null, r.rebilling_id + " via " + r.method + ": " +
-      r.reference + " (confirmed by " + r.confirmed_by + ")"));
+  if ((C.alerts || []).length) {
+    sg.appendChild(el("h3", null, "Needs attention"));
+    C.alerts.forEach(a => sg.appendChild(el("p", null, "! " + a)));
+  }
+  sg.appendChild(el("h3", null, "Recognition events (per rebilling)"));
+  const recs = C.recognitions || [];
+  if (!recs.length) sg.appendChild(el("p", "muted", "No recognitions recorded."));
+  recs.forEach(r => {
+    sg.appendChild(el("p", null, r.id + " / " + r.kind + " / " + fmtMoney(r.amount_cents) +
+      " / " + r.reference + " (confirmed by " + r.confirmed_by +
+      "; recorded by " + r.recorded_by + ")" +
+      (r.duplicate_of ? " [duplicate of " + r.duplicate_of + "]" : "")));
+  });
+  (C.rebillings || []).forEach(b => {
+    const st = (C.rebilling_status || {})[b.id];
+    if (st) {
+      sg.appendChild(el("p", null, b.id + ": recognized " + fmtMoney(st.recognized_cents) +
+        " of " + fmtMoney(b.amount_cents) +
+        (st.disputed_cents > 0 ? " / BALANCE IN DISPUTE " + fmtMoney(st.disputed_cents) : "")));
+    }
   });
   if (C.rebillings.length) {
     const v1 = el("div", "row", null);
@@ -559,37 +574,139 @@ function renderCircuit(n) {
     vs.id = "rc-rebilling"; vs.setAttribute("aria-label", "Rebilling");
     C.rebillings.forEach(r => vs.appendChild(el("option", null, r.id)));
     const vm = el("select", null, null);
-    vm.id = "rc-method"; vm.setAttribute("aria-label", "Method");
-    ["credit_note", "rebilling_paid"].forEach(v => vm.appendChild(el("option", null, v)));
+    vm.id = "rc-kind"; vm.setAttribute("aria-label", "Kind");
+    ["financier_credit_note", "provider_credit_note", "treasury_confirmation", "rebilling_paid"].forEach(v => vm.appendChild(el("option", null, v)));
     v1.appendChild(vs); v1.appendChild(vm);
     sg.appendChild(v1);
     const v2 = el("div", "row", null);
+    const va = el("input", null, null);
+    va.id = "rc-amount"; va.placeholder = "Amount $ (required)";
+    va.setAttribute("aria-label", "Amount");
     const vr = el("input", null, null);
     vr.id = "rc-reference"; vr.placeholder = "Evidence reference (required)";
     vr.setAttribute("aria-label", "Reference");
-    const vc = el("input", null, null);
-    vc.id = "rc-by"; vc.placeholder = "Confirmed by"; vc.setAttribute("aria-label", "Confirmed by");
-    const va = el("input", null, null);
-    va.id = "rc-amount"; va.placeholder = "Observed $ (optional)";
-    va.setAttribute("aria-label", "Observed amount");
-    v2.appendChild(vr); v2.appendChild(vc); v2.appendChild(va);
+    v2.appendChild(va); v2.appendChild(vr);
     sg.appendChild(v2);
-    const bv = el("button", "sec", "Record recovery");
-    bv.id = "b-recover"; bv.disabled = S.busy;
+    const v3 = el("div", "row", null);
+    const vc = el("input", null, null);
+    vc.id = "rc-confirmed"; vc.placeholder = "Issuer / confirming sector";
+    vc.setAttribute("aria-label", "Confirmed by");
+    const vd = el("input", null, null);
+    vd.id = "rc-recorded"; vd.placeholder = "Recording owner";
+    vd.setAttribute("aria-label", "Recorded by");
+    const ve = el("input", null, null);
+    ve.id = "rc-date"; ve.type = "date"; ve.setAttribute("aria-label", "Date");
+    v3.appendChild(vc); v3.appendChild(vd); v3.appendChild(ve);
+    sg.appendChild(v3);
+    const bv = el("button", "sec", "Record recognition");
+    bv.id = "b-recognize"; bv.disabled = S.busy;
     bv.addEventListener("click", () => {
-      const raw = $("rc-amount").value.trim();
-      const amt = raw ? parseMoney(raw) : null;
-      if (raw && amt === null) { circuitMsg("Invalid amount: use 12,500.50 format."); return; }
-      const body = {rebilling_id: $("rc-rebilling").value,
-        method: $("rc-method").value, reference: $("rc-reference").value,
-        confirmed_by: $("rc-by").value};
-      if (amt !== null) body.amount_cents = amt;
-      circuitPost("/api/recovery", body, "Recovery recorded with evidence.");
+      const amt = parseMoney($("rc-amount").value);
+      if (amt === null) { circuitMsg("Invalid amount: use 12,500.50 format."); return; }
+      circuitPost("/api/recognition", {rebilling_id: $("rc-rebilling").value,
+        kind: $("rc-kind").value, amount_cents: amt,
+        reference: $("rc-reference").value, confirmed_by: $("rc-confirmed").value,
+        recorded_by: $("rc-recorded").value, date: $("rc-date").value},
+        "Recognition recorded.");
     });
     sg.appendChild(bv);
+    if (recs.length > 1) {
+      const x1 = el("div", "row", null);
+      const xe = el("select", null, null);
+      xe.id = "rx-event"; xe.setAttribute("aria-label", "Event");
+      recs.forEach(r => xe.appendChild(el("option", null, r.id)));
+      const xd = el("select", null, null);
+      xd.id = "rx-dupof"; xd.setAttribute("aria-label", "Duplicate of");
+      recs.forEach(r => xd.appendChild(el("option", null, r.id)));
+      const xb = el("input", null, null);
+      xb.id = "rx-by"; xb.placeholder = "Reconciled by"; xb.setAttribute("aria-label", "Reconciled by");
+      x1.appendChild(xe); x1.appendChild(xd); x1.appendChild(xb);
+      sg.appendChild(x1);
+      const bx = el("button", "sec", "Mark as duplicate");
+      bx.id = "b-reconcile"; bx.disabled = S.busy;
+      bx.addEventListener("click", () => circuitPost("/api/reconcile", {
+        event_id: $("rx-event").value, duplicate_of: $("rx-dupof").value,
+        reconciled_by: $("rx-by").value}, "Recognition reconciled."));
+      sg.appendChild(bx);
+    }
   } else {
     sg.appendChild(el("p", "muted", "Record a rebilling first."));
   }
+  sg.appendChild(el("h3", null, "Accepted debits (terminal closure)"));
+  const accs = C.accepted || [];
+  if (!accs.length) sg.appendChild(el("p", "muted", "No accepted debits."));
+  accs.forEach(a => {
+    sg.appendChild(el("p", null, "L" + a.line_no + " accepted by " + a.accepted_by + ": " + a.origin));
+    if (a.corrective) sg.appendChild(el("p", "muted", "Corrective: " + a.corrective));
+  });
+  const a1 = el("div", "row", null);
+  const al = el("input", null, null);
+  al.id = "ac-line"; al.placeholder = "Line #"; al.setAttribute("aria-label", "Line");
+  const ab = el("input", null, null);
+  ab.id = "ac-by"; ab.placeholder = "Accepted by"; ab.setAttribute("aria-label", "Accepted by");
+  a1.appendChild(al); a1.appendChild(ab);
+  sg.appendChild(a1);
+  const ao = el("input", null, null);
+  ao.id = "ac-origin"; ao.placeholder = "Analyzed origin (required)";
+  ao.setAttribute("aria-label", "Origin");
+  sg.appendChild(ao);
+  const aw = el("input", null, null);
+  aw.id = "ac-corrective"; aw.placeholder = "Corrective action (optional)";
+  aw.setAttribute("aria-label", "Corrective");
+  sg.appendChild(aw);
+  const ba3 = el("button", "sec", "Accept debit");
+  ba3.id = "b-accept"; ba3.disabled = S.busy;
+  ba3.addEventListener("click", () => {
+    const n = parseInt($("ac-line").value, 10);
+    if (!n) { circuitMsg("Type the line number."); return; }
+    circuitPost("/api/accept-debit", {case_id: S.case.id, line_no: n,
+      accepted_by: $("ac-by").value, origin: $("ac-origin").value,
+      corrective: $("ac-corrective").value}, "Debit accepted (terminal closure).");
+  });
+  sg.appendChild(ba3);
+  sg.appendChild(el("h3", null, "Accounting documents (not an authorization)"));
+  const docs = C.accounting_docs || [];
+  if (!docs.length) sg.appendChild(el("p", "muted", "No accounting documents."));
+  docs.forEach(x => {
+    sg.appendChild(el("p", null, x.id + " / " + x.kind + " / " + x.number +
+      ((x.amount_cents !== null && x.amount_cents !== undefined) ? " / " + fmtMoney(x.amount_cents) : "") +
+      ((x.line_no !== null && x.line_no !== undefined) ? " / L" + x.line_no : " / case") +
+      " (recorded by " + x.recorded_by + ")"));
+  });
+  const g1 = el("div", "row", null);
+  const gl = el("input", null, null);
+  gl.id = "ad-line"; gl.placeholder = "Line # (optional)"; gl.setAttribute("aria-label", "Line");
+  const gn = el("input", null, null);
+  gn.id = "ad-number"; gn.placeholder = "Document number (required)";
+  gn.setAttribute("aria-label", "Number");
+  const gm = el("input", null, null);
+  gm.id = "ad-amount"; gm.placeholder = "Observed $ (optional)";
+  gm.setAttribute("aria-label", "Amount");
+  g1.appendChild(gl); g1.appendChild(gn); g1.appendChild(gm);
+  sg.appendChild(g1);
+  const g2 = el("div", "row", null);
+  const gd = el("input", null, null);
+  gd.id = "ad-date"; gd.type = "date"; gd.setAttribute("aria-label", "Date");
+  const gb = el("input", null, null);
+  gb.id = "ad-by"; gb.placeholder = "Recorded by"; gb.setAttribute("aria-label", "Recorded by");
+  g2.appendChild(gd); g2.appendChild(gb);
+  sg.appendChild(g2);
+  const bdoc = el("button", "sec", "Record accounting doc");
+  bdoc.id = "b-accdoc"; bdoc.disabled = S.busy;
+  bdoc.addEventListener("click", () => {
+    const raw = $("ad-line").value.trim();
+    const n = raw ? parseInt(raw, 10) : null;
+    if (raw && !n) { circuitMsg("Invalid line number."); return; }
+    const mraw = $("ad-amount").value.trim();
+    const amt = mraw ? parseMoney(mraw) : null;
+    if (mraw && amt === null) { circuitMsg("Invalid amount: use 12,500.50 format."); return; }
+    const body = {case_id: S.case.id, line_no: n, kind: "provider_credit_note",
+      number: $("ad-number").value, recorded_by: $("ad-by").value,
+      date: $("ad-date").value};
+    if (amt !== null) body.amount_cents = amt;
+    circuitPost("/api/accounting-doc", body, "Accounting doc recorded (not an authorization).");
+  });
+  sg.appendChild(bdoc);
   const so = el("div", null, null);
   so.id = "circuit-out";
   so.setAttribute("aria-live", "polite");
@@ -663,7 +780,7 @@ function renderEvidence() {
   const evtLast = S.hist[S.hist.length - 1];
   n.appendChild(el("p", "muted", S.hist.length + " events · last: " +
     evtLast[1] + " " + (evtLast[5] || "")));
-  const ICON = {proposal: "✓", review: "✔", model_call: "◈", gate: "⛔", task: "→", task_verify: "✔", task_return: "↩", resolution: "●", rebilling: "▸", recovery: "◆"};
+  const ICON = {proposal: "✓", review: "✔", model_call: "◈", gate: "⛔", task: "→", task_verify: "✔", task_return: "↩", resolution: "●", rebilling: "▸", recovery: "◆", recognition: "◆", reconcile: "=", accepted: "■", accounting_doc: "▤"};
   S.hist.filter(h => ICON[h[1]]).forEach(h => {
     const d = el("p", null, null);
     d.appendChild(el("strong", null, ICON[h[1]] + " " + h[1] + " "));
