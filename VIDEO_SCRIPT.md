@@ -19,13 +19,17 @@ Opening note (verbatim):
    settlement, agreement with validity).
 2. Extraction: 2 lines, text source, confidence 1.0, no flags.
 3. Reconciliation: $16,500 + $42,000 = $58,500, dif 0 (whole
-   cents); agreed values current at service time.
-4. Proposal: Agreements/claim backed by findings.
-5. Baseten input (muse-spark-open): findings with code-checked citations
-   (what was verified and what stayed flagged unverified).
-6. Claim draft: template with checkable data.
-7. Personal review in the UI: approving the proposal neither accepts
-   the debit nor authorizes messages.
+   cents); agreed values current at service time. Arithmetic
+   only — no claim about what is recoverable.
+4. Proposal: route to the Agreements team with the literal
+   payer reason and the checks the team must run.
+5. Model input (Baseten muse-spark-open): findings with code-checked
+   citations (what was verified and what stayed flagged
+   unverified).
+6. Referral draft: template with checkable data.
+7. Personal review in the UI: approving the routing neither accepts
+   the debit, nor resolves anything economic, nor authorizes
+   messages.
 8. History: date/time with zone, model call, reviewer,
    rationale and before/after transition.
 9. Clinical case: routing to people with no accept/claim
@@ -35,8 +39,7 @@ Opening note (verbatim):
 
 - Idea declared eligible by Adam Blumenfeld (Cerebral Valley),
   10/27/2026: administrative debit management, no clinical judgment,
-  fictitious data, human approval. Exact link and scope in
-  README and TEST_REPORT.md. Not a security or
+  fictitious data, human approval. Not a security or
   compliance certification nor an approval of future extensions.
 - A future implementation is part of the project's value. The AI layer
   is NOT deployed at the clinic and its benefits were not

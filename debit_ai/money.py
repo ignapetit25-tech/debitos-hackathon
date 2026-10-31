@@ -24,8 +24,21 @@ def parse_amount(text: str) -> int:
     return sign * (int(whole or 0) * 100 + int(dec))
 
 
+def format_money_us(cents: int) -> str:
+    """Cents to US text for the English UI, e.g. 5700000 -> '$57,000.00'."""
+    if not isinstance(cents, int):
+        raise ValueError("cents must be int")
+    sign = "-" if cents < 0 else ""
+    cents = abs(cents)
+    whole, dec = divmod(cents, 100)
+    return f"{sign}${whole:,}.{dec:02d}"
+
+
 def format_money(cents: int) -> str:
-    """Cents to AR text, e.g. 5700000 -> '$57.000,00'."""
+    """Cents to AR text, e.g. 5700000 -> '$57.000,00'.
+
+    Document-domain format (matches parse_amount); UI-facing strings
+    use format_money_us instead."""
     if not isinstance(cents, int):
         raise ValueError("cents must be int")
     sign = "-" if cents < 0 else ""

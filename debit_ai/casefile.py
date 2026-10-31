@@ -14,7 +14,7 @@ from dataclasses import replace
 
 from . import rules
 from .contracts import Case, Finding, RuleRef
-from .money import format_money, parse_amount
+from .money import format_money_us as format_money, parse_amount
 
 BACKED = "backed_difference"
 INCONSISTENCY = "inconsistency"

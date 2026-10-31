@@ -48,6 +48,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 blockquote{margin:.4em 0;padding:.4em .7em;border-left:4px solid var(--acc);background:#f3f4f6;font-size:.88em;white-space:pre-wrap}
 pre.doc{background:#111827;color:#e5e7eb;padding:.8em;border-radius:8px;white-space:pre-wrap;font-size:.83em;max-height:300px;overflow:auto}
 .muted{color:var(--mut);font-size:.85em}
+.summary{background:var(--info-bg);border:1px solid var(--acc);border-radius:8px;padding:.5em .8em}
 .status{font-size:.88em;padding:.5em .2em}
 .status.loading::before{content:"◷ "}
 .status.error{color:var(--bad)}.status.error::before{content:"✕ "}

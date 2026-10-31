@@ -3,12 +3,14 @@
 ## Deterministic metrics (no model)
 
 Run (local environment):
-- API-free suite: 42 tests OK (37 prior + 5 Baseten offline:
-  explicit no-key, default model/base, timeout 60 and
-  max_retries 0, net error with no faked success, chat-only;
-  2 live skipped). Full code translated to English
-  (`feat/english-rewrite`): package `debit_ai`, English API/UI,
-  Spanish kept only in fictitious domain text.
+- Offline suite: 71 tests OK, 2 live skipped (gated by
+  `META_LIVE=1` / `BASETEN_LIVE=1`, off by default).
+  Stages 1-4 added: strict money-input vectors (Node, 25/25),
+  post-model gate, neutral routing (no merit conclusions),
+  review persistence, one-command setup, per-page citations,
+  followup invariants, per-action drafts, numeric versions.
+  Package `debit_ai`, English API/UI; Spanish kept only in
+  fictitious domain text.
 - Baseten: implemented (`BasetenProvider`, minimal probe and
   acceptance test with fictitious data). Keyless probe fails
   explicit (exit 1, 0 calls).
@@ -42,9 +44,11 @@ Run (local environment):
   payers; June-2026 overlap resolved to v2026 with warning;
   idempotent seeding; rates now come from the manager.
 - Process: threshold priority, weekend-skipping SLA,
-  checklist (lines, sums, copays, agreement, owner),
-  validated reply (decision, whole amounts, owner, date)
-  with a `followup` event. Shot `docs/shots/05-process.png`.
+  checklist (lines, sums, copays, agreement, owner).
+  Team reply (INTERIM): validated reply with a `followup`
+  event exists, but its decision/amount semantics are being
+  reworked into per-task replies with backing references, per
+  the owner's debit circuit. Shot `docs/shots/05-process.png`.
 - Synthetic evaluation over 7 controlled cases: extraction 7/7,
   routing 7/7, abstention 7/7 (includes 1 scanned PDF with
   spa OCR, confidence 0.92). "Abstention 7/7" means: routed to a human
@@ -73,23 +77,30 @@ Run (local environment):
   reference → explicit CITATION UNVERIFIED; case switch mid-request
   → busy guard + disabled buttons (inspection);
   fallen provider → DEGRADED with the deterministic casefile intact.
-- UI verified in a real JS engine (jsdom against the server): Meta
-  banner, 10 inbox cases, casefile, 10 findings, 3 documents,
-  history; 0 JS errors; 0 innerHTML uses.
-- Shots `docs/shots/01-inbox.png` … `04-review.png`
-  (Playwright against the local page, 0 JS errors, 0 inferences):
-  inbox with states and amounts, reconciled `EXP-900` casefile,
-  evidence with citation-OK / CITATION UNVERIFIED findings and a
-  pending review form (undecided). NOTE: shots predate the English
-  UI rewrite (Spanish UI shown). Pending cosmetic detail:
-  column widths in narrow tables.
+- UI verified in real engines (jsdom probes + Chromium screenshots
+  against a scratch server, simulated provider, 0 paid calls):
+  inbox, auto-opened main case, casefile with totals, evidence
+  with citation-OK / CITATION UNVERIFIED findings, review
+  approve/reject with persistent confirmation, reload persistence,
+  single review event, gated team reply, per-action drafts;
+  0 JS/console errors; 0 innerHTML uses.
+- Shots `docs/shots/01-inbox.png` … `06-polish.png` (Chromium,
+  English UI, simulated provider, 0 console errors, 0 inferences):
+  01 inbox with states and amounts; 02 `EXP-900` casefile (summary,
+  totals, neutral checks, open-document buttons); 03 evidence with
+  a selected finding; 04 undecided review form; 05 saved team
+  reply; 06 final state. Prior Spanish-UI shots replaced.
+- Legacy taxonomy note: proposals recorded before the domain
+  correction carry action `claim`; drafts and UI render them with
+  the current referral template. Old records are kept verbatim.
 - Meta-required fix: `EXPLANATION_SCHEMA` needed
   `"additionalProperties": False` (strict mode). The
   earlier `AuthenticationError` only proved connectivity and credential
   rejection; it did NOT validate the schema. The schema was validated
   by the later successful call.
-- LIMIT: the test's approval is automated (`reviewer-milestone`);
-  it does NOT stand for a real human review.
+- LIMIT: the test's approval is automated (`auto-test-live`);
+  it does NOT stand for a real human review. All test reviewers
+  are named `auto-test*` and run on temp DBs, never the live one.
 - Meta demo walkthrough (`DEMO-F123`, fictitious data): extraction
   2/2 with no flags, sums OK (dif 0), Agreements/claim proposal with
   `muse-spark-1.3` text, draft checked figure by figure,
@@ -126,3 +137,7 @@ Run (local environment):
 Pending:
 - Real JSON adapter (implemented, disabled, unverified).
 - OCR on documents outside the controlled fixtures.
+- Team-reply redefinition: per-line/per-task replies with backing
+  references, administrative resolution, rebilling link, recovery
+  evidence (owner's debit circuit; partial recoveries, closures
+  and exceptions still to be defined with concrete examples).

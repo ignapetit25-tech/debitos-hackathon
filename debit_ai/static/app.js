@@ -111,6 +111,10 @@ function renderFile() {
   const c = S.case, e = S.file;
   n.appendChild(el("p", "muted", c.id + " · " + c.payer + " · invoice " +
     c.invoice + " · service " + (c.service_date || "not reported")));
+  const sum = el("p", "summary", null);
+  sum.appendChild(el("strong", null, fmtMoney(c.total_debit_cents) + " debited · "));
+  sum.appendChild(el("span", null, c.status + " · next: " + e.next_step));
+  n.appendChild(sum);
   if (S.proc) {
     const pr = el("p", null, null);
     pr.appendChild(badge(S.proc.priority !== "P3", S.proc.priority === "P3",
@@ -145,22 +149,34 @@ function renderFile() {
   }
   const tb = el("table", null, null);
   const hr = el("tr", null, null);
-  ["#", "procedure", "billed", "settled", "difference", "agreed value", "source"]
-    .forEach((h, i) => hr.appendChild(el("th", i >= 2 && i <= 5 ? "num" : null, h)));
+  ["line", "billed", "settled", "difference", "agreed value", "source"]
+    .forEach((h, i) => hr.appendChild(el("th", i >= 1 ? "num" : null, h)));
   tb.appendChild(hr);
   e.lines.forEach(r => {
     const tr = el("tr", null, null);
-    tr.appendChild(el("td", null, "L" + r.line_no + " " + r.procedure));
-    tr.appendChild(el("td", null, r.reason));
+    const lc = el("td", null, null);
+    lc.appendChild(el("strong", null, "L" + r.line_no + " " + r.procedure));
+    lc.appendChild(el("div", "muted", r.reason));
+    tr.appendChild(lc);
     [r.billed_cents, r.settled_cents, r.debit_cents].forEach(v =>
       tr.appendChild(el("td", "num", fmtMoney(v))));
     tr.appendChild(el("td", "num", r.ref_cents === null || r.ref_cents === undefined ? "—" : fmtMoney(r.ref_cents)));
     tr.appendChild(el("td", null, r.ref_source));
     tb.appendChild(tr);
   });
+  const tr = el("tr", null, null);
+  const lab = el("td", null, null);
+  lab.appendChild(el("strong", null, "TOTAL"));
+  tr.appendChild(lab);
+  const sumK = k => e.lines.reduce((a, r) => a + r[k], 0);
+  [sumK("billed_cents"), sumK("settled_cents"), sumK("debit_cents")].forEach(v =>
+    tr.appendChild(el("td", "num", fmtMoney(v))));
+  tr.appendChild(el("td", "num", e.total_ref_cents === null || e.total_ref_cents === undefined ? "—" : fmtMoney(e.total_ref_cents)));
+  tr.appendChild(el("td", null, ""));
+  tb.appendChild(tr);
   n.appendChild(scrollWrap(tb));
   n.appendChild(badge(e.sums_ok, false, "sums OK", "INCONSISTENT SUMS"));
-  const h3 = el("h3", null, "Deterministic findings");
+  const h3 = el("h3", null, "Checks performed (deterministic code)");
   n.appendChild(h3);
   if (!e.findings.length) n.appendChild(el("p", "muted", "No findings."));
   e.findings.forEach(h => {
@@ -171,10 +187,16 @@ function renderFile() {
     if (h.limitations) d.appendChild(el("p", "muted", "Limit: " + h.limitations));
     d.appendChild(el("p", "muted", (h.verified ? "✓ citation verified" : "✕ citation unverified") +
       " · " + h.document + " p." + h.page));
+    if ((S.case.documents || []).some(x => x.role === h.document)) {
+      const ob = el("button", "sec", "Open " + h.document + " PDF");
+      ob.addEventListener("click", () => window.open("/api/pdf?case_id=" +
+        encodeURIComponent(S.case.id) + "&role=" + encodeURIComponent(h.document), "_blank"));
+      d.appendChild(ob);
+    }
     n.appendChild(d);
   });
   if (e.missing.length) {
-    n.appendChild(el("h3", null, "Missing information"));
+    n.appendChild(el("h3", null, "Pending items"));
     const ul = el("ul", null, null);
     e.missing.forEach(f => ul.appendChild(el("li", null, f)));
     n.appendChild(ul);
@@ -194,9 +216,15 @@ function renderProposal(n) {
   sel.id = "ver-sel";
   sel.setAttribute("aria-label", "Proposal version");
   if (!S.props.length) sel.appendChild(el("option", null, "no proposals (request one)"));
+  const decided = {};
+  S.hist.filter(h => h[1] === "review").forEach(h => {
+    const m = /^proposal (\S+) (approved|rejected) by /.exec(h[4] || "");
+    if (m) decided[m[1]] = m[2];
+  });
   S.props.forEach(p => {
     const o = el("option", null, p.id + " · " + p.team + " / " + p.action +
-      (p.degraded ? " · DEGRADED" : ""));
+      (p.degraded ? " · DEGRADED" : "") +
+      (decided[p.id] ? " · ✓ " + decided[p.id] : " · undecided"));
     o.value = p.id;
     sel.appendChild(o);
   });
@@ -375,7 +403,7 @@ async function requestProposal() {
 }
 
 async function viewDraft() {
-  if (!S.prop) return;
+  if (!S.prop || S.busy) return;
   try {
     const j = await call("GET", "/api/draft?proposal_id=" + encodeURIComponent(S.prop));
     S.draft = j.title + "\n\n" + j.body;
@@ -455,6 +483,12 @@ function renderEvidence() {
     d.appendChild(el("p", null, h.interpretation));
     if (h.limitations) d.appendChild(el("p", "muted", "Limitations: " + h.limitations));
     d.appendChild(el("p", "muted", "Verified validates the citation, not the interpretation."));
+    if ((S.case.documents || []).some(x => x.role === h.document)) {
+      const ob = el("button", "sec", "Open " + h.document + " PDF (p." + h.page + ")");
+      ob.addEventListener("click", () => window.open("/api/pdf?case_id=" +
+        encodeURIComponent(S.case.id) + "&role=" + encodeURIComponent(h.document), "_blank"));
+      d.appendChild(ob);
+    }
     n.appendChild(d);
   }
   const det = el("details", "meta", null);
@@ -517,8 +551,12 @@ async function init() {
     const c = await call("GET", "/api/cases");
     S.cases = c.cases;
     renderInbox();
-    status($("file-body"), "empty", "Pick a case from the inbox.");
-    status($("evidence-body"), "empty", "Pick a case from the inbox.");
+    const main = S.cases.find(x => x.id === "EXP-900");
+    if (main) selectCase(main.id);
+    else {
+      status($("file-body"), "empty", "Pick a case from the inbox.");
+      status($("evidence-body"), "empty", "Pick a case from the inbox.");
+    }
   } catch (e) {
     $("provider").textContent = "✕ Connection error: " + e.message;
     status($("inbox-status"), "error", "Could not load.");

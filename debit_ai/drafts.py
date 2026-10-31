@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from .contracts import Case
-from .money import format_money
+from .money import format_money_us as format_money
 
 # Legacy actions stored before the routing taxonomy; rendered with the
 # closest current template so old proposals keep a readable draft.
