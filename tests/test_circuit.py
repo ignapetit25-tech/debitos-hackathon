@@ -403,3 +403,48 @@ class TestSharedAudit(unittest.TestCase):
         tasks.request_shared_audit(s, rb["id"], "C2", "m", DEB, "A", "P")
         with self.assertRaisesRegex(ValueError, "already links"):
             tasks.request_shared_audit(s, rb["id"], "C2", "m2", DEB, "A", "P")
+
+
+class TestAuditConclusion(unittest.TestCase):
+    def _audit(self):
+        s = _store()
+        s.seed_case(Case("C2", "P", "F-2",
+                         (LineItem(1, "PR", "new motive", 20000, 0),), 20000))
+        rb = _rebilled(s)
+        tasks.record_recognition(s, rb["id"], "financier_credit_note",
+                                 10000, "NC-1", "P", DEB, "2026-09-20")
+        au = tasks.request_shared_audit(s, rb["id"], "C2", "rest re-debited",
+                                        DEB, "auto-test-auditor", "staff")
+        return s, au
+
+    def test_rebill_conclusion(self):
+        s, au = self._audit()
+        c = tasks.conclude_shared_audit(s, au["id"], DEB, "rebill", 12000)
+        self.assertEqual(c["rebill_cents"], 12000)
+        self.assertEqual(c["disputed_cents"], 20000)
+        got = [a for a in s.list_shared_audits("C1")
+               if a["id"] == au["id"]][0]["conclusion"]
+        self.assertEqual(got["outcome"], "rebill")
+        self.assertIn("audit_conclusion", [h[1] for h in s.history("C1")])
+        self.assertIn("audit_conclusion", [h[1] for h in s.history("C2")])
+
+    def test_accept_conclusion(self):
+        s, au = self._audit()
+        c = tasks.conclude_shared_audit(s, au["id"], DEB, "accept")
+        self.assertEqual(c["outcome"], "accept")
+        self.assertIsNone(c["rebill_cents"])
+
+    def test_conclusion_guards(self):
+        s, au = self._audit()
+        with self.assertRaises(KeyError):
+            tasks.conclude_shared_audit(s, "SA-99", DEB, "accept")
+        with self.assertRaises(ValueError):
+            tasks.conclude_shared_audit(s, au["id"], DEB, "split")
+        with self.assertRaises(ValueError):
+            tasks.conclude_shared_audit(s, au["id"], "  ", "accept")
+        for bad in (None, 0, -100, 20001, 30000):
+            with self.assertRaises(ValueError):
+                tasks.conclude_shared_audit(s, au["id"], DEB, "rebill", bad)
+        tasks.conclude_shared_audit(s, au["id"], DEB, "rebill", 12000)
+        with self.assertRaisesRegex(ValueError, "already concluded"):
+            tasks.conclude_shared_audit(s, au["id"], DEB, "accept")

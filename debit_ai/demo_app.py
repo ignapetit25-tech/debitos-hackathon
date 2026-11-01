@@ -299,6 +299,12 @@ class Handler(BaseHTTPRequestHandler):
                     body.get("payer_side", ""), body.get("channel", "email"),
                     body.get("note", ""))
                 _json(self, 200, {"shared_audit": au})
+            elif self.path == "/api/shared-audit/conclude":
+                c = tasks.conclude_shared_audit(
+                    self.store, body["audit_id"], body.get("concluded_by", ""),
+                    body.get("outcome", ""), body.get("rebill_cents"),
+                    body.get("date", ""), body.get("note", ""))
+                _json(self, 200, {"conclusion": c})
             elif self.path == "/api/accounting-doc":
                 doc = tasks.record_accounting_doc(
                     self.store, body["case_id"], body.get("line_no"),

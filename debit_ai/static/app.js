@@ -713,7 +713,12 @@ function renderCircuit(n) {
   aus.forEach(a => {
     sg.appendChild(el("p", null, a.id + ": dispute on " + a.origin_rebilling_id +
       " followed to " + a.new_case_id + " (" + a.new_motive + "); requested by " +
-      a.requested_by + " with " + a.company_auditor + " + " + a.payer_side + " by email"));
+      a.requested_by + " with " + a.company_auditor + " + " + a.payer_side + " by email" +
+      (a.conclusion ? (" / CONCLUDED by " + a.conclusion.concluded_by + ": " +
+        (a.conclusion.outcome === "rebill"
+          ? ("rebill " + fmtMoney(a.conclusion.rebill_cents) + " of disputed " +
+             fmtMoney(a.conclusion.disputed_cents))
+          : ("accepted (disputed was " + fmtMoney(a.conclusion.disputed_cents) + ")"))) : "")));
   });
   if (C.rebillings.length) {
     const u1 = el("div", "row", null);
@@ -745,6 +750,37 @@ function renderCircuit(n) {
       company_auditor: $("sa-auditor").value, payer_side: $("sa-payer").value,
       channel: "email"}, "Shared audit requested (by email)."));
     sg.appendChild(bu);
+  }
+  if (aus.length) {
+    const w1 = el("div", "row", null);
+    const ws = el("select", null, null);
+    ws.id = "sx-audit"; ws.setAttribute("aria-label", "Audit");
+    aus.forEach(a => ws.appendChild(el("option", null, a.id)));
+    const wo = el("select", null, null);
+    wo.id = "sx-outcome"; wo.setAttribute("aria-label", "Outcome");
+    ["rebill", "accept"].forEach(v => wo.appendChild(el("option", null, v)));
+    const wm = el("input", null, null);
+    wm.id = "sx-amount"; wm.placeholder = "Rebill $ (if rebill)";
+    wm.setAttribute("aria-label", "Rebill amount");
+    w1.appendChild(ws); w1.appendChild(wo); w1.appendChild(wm);
+    sg.appendChild(w1);
+    const w2 = el("div", "row", null);
+    const wb = el("input", null, null);
+    wb.id = "sx-by"; wb.placeholder = "Concluded by"; wb.setAttribute("aria-label", "Concluded by");
+    w2.appendChild(wb);
+    sg.appendChild(w2);
+    const bw = el("button", "sec", "Conclude audit");
+    bw.id = "b-conclude"; bw.disabled = S.busy;
+    bw.addEventListener("click", () => {
+      const raw = $("sx-amount").value.trim();
+      const amt = raw ? parseMoney(raw) : null;
+      if (raw && amt === null) { circuitMsg("Invalid amount: use 12,500.50 format."); return; }
+      const body = {audit_id: $("sx-audit").value, concluded_by: $("sx-by").value,
+        outcome: $("sx-outcome").value};
+      if (amt !== null) body.rebill_cents = amt;
+      circuitPost("/api/shared-audit/conclude", body, "Audit concluded with agreed terms.");
+    });
+    sg.appendChild(bw);
   }
   const so = el("div", null, null);
   so.id = "circuit-out";
@@ -819,7 +855,7 @@ function renderEvidence() {
   const evtLast = S.hist[S.hist.length - 1];
   n.appendChild(el("p", "muted", S.hist.length + " events · last: " +
     evtLast[1] + " " + (evtLast[5] || "")));
-  const ICON = {proposal: "✓", review: "✔", model_call: "◈", gate: "⛔", task: "→", task_verify: "✔", task_return: "↩", resolution: "●", rebilling: "▸", recovery: "◆", recognition: "◆", reconcile: "=", accepted: "■", accounting_doc: "▤", shared_audit: "✉"};
+  const ICON = {proposal: "✓", review: "✔", model_call: "◈", gate: "⛔", task: "→", task_verify: "✔", task_return: "↩", resolution: "●", rebilling: "▸", recovery: "◆", recognition: "◆", reconcile: "=", accepted: "■", accounting_doc: "▤", shared_audit: "✉", audit_conclusion: "✔"};
   S.hist.filter(h => ICON[h[1]]).forEach(h => {
     const d = el("p", null, null);
     d.appendChild(el("strong", null, ICON[h[1]] + " " + h[1] + " "));

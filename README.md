@@ -102,8 +102,10 @@ payer reasons. "Medical Audit" is a human destination team.
   ambiguous pairs await human reconciliation (never auto-merged).
   Disputed balances returning as new debits open a shared audit
   (requested by debitos with the company auditor + payer staff,
-  by email), linked to the origin rebilling; how the audit
-  concludes is not defined yet.
+  by email), linked to the origin rebilling; the audit concludes
+  on the new case defining how much of the pending is rebilled
+  or that it is accepted (terms only; lines still close through
+  the normal per-line actions).
   Terminal "accepted debit" closure (owner recognizes the debit
   stands) with origin analysis and corrective action. Accounting
   documents are recorded separately and never substitute the

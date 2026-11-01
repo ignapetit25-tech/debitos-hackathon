@@ -40,7 +40,7 @@ fixtures only, history 0 — the honest empty state).
 ## Deterministic metrics (no model)
 
 Run (local environment):
-- Offline suite: 118 tests OK, 2 live skipped (gated by
+- Offline suite: 121 tests OK, 2 live skipped (gated by
   `META_LIVE=1` / `BASETEN_LIVE=1`, off by default).
   Stages 1-4 added: strict money-input vectors (Node, 25/25),
   post-model gate, neutral routing (no merit conclusions),
@@ -52,8 +52,8 @@ Run (local environment):
   per-line resolution, rebilling link, partial recognition with
   issuer, dispute balance, duplicate refusal, reconciliation,
   accepted-debit closure, accounting docs with authorization-gap
-  alerts, shared-audit link with guards, no amount-derived
-  status) + 9 provider-limit tests
+  alerts, shared-audit link and conclusion with guards, no
+  amount-derived status) + 9 provider-limit tests
   (input truncation before any call, output token caps passed to
   Meta responses/chat and Baseten chat, coverage transparency in
   model_call and proposal, stubbed clients, 0 network).
@@ -109,7 +109,8 @@ Run (local environment):
   actors auto-test-*): 3 lines, 4 tasks, 1 return, 2 resolutions,
   1 rebilling with partial recognition ($10,000 of $30,000,
   $20,000 disputed), 1 accepted debit, 1 shared audit (dispute
-  returns as EXP-2502). Shot `docs/shots/05-process.png`.
+  returns as EXP-2502, concluded: rebill $12,000). Shot
+  `docs/shots/05-process.png`.
 - Synthetic evaluation over 7 controlled cases: extraction 7/7,
   routing 7/7, abstention 7/7 (includes 1 scanned PDF with
   spa OCR, confidence 0.92). "Abstention 7/7" means: routed to a human
@@ -140,13 +141,14 @@ Run (local environment):
   fallen provider → DEGRADED with the deterministic casefile intact.
 - UI verified in real engines (jsdom probes + Chromium screenshots
   against a scratch server, simulated provider, 0 paid calls):
-  circuit probe 25/25 in Chromium (Playwright; the /tmp jsdom
+  circuit probe 28/28 in Chromium (Playwright; the /tmp jsdom
   harness was lost to a tmp cleanup, probes re-implemented):
   create → answer guards → verify → resolve → rebill →
   partial recognition with dispute → duplicate refusal →
   ambiguity alert → reconcile → accepted debit with closure
   guards → shared-audit request with duplicate guard →
-  accounting-doc alert, prebuilt circuit case;
+  audit conclusion with terms guards → accounting-doc alert,
+  prebuilt circuit case;
   0 console errors; 0 innerHTML uses. Review UI code unchanged
   since its 9/9; review backend re-verified via API (propose →
   approve → single review event).
@@ -205,11 +207,10 @@ Run (local environment):
 Pending:
 - Real JSON adapter (implemented, disabled, unverified).
 - OCR on documents outside the controlled fixtures.
-- Circuit exceptions still open: HOW a shared audit concludes
-  (request/participants/email channel implemented; no conclusion
-  states — ask with a concrete example before automating);
-  joint multi-line resolutions (single-line only, unconfirmed).
+- Circuit exceptions still open: joint multi-line resolutions
+  (single-line only, unconfirmed).
   Settled: "saldo en disputa" (confirmed); multiple documented
   events per rebilling ALLOWED (partial recognition);
   multi-invoice notes ruled out (owner: modeling error);
-  accepted-debit text fields suffice.
+  accepted-debit text fields suffice; shared-audit conclusion
+  (rebill amount within disputed, or accept; terms only).

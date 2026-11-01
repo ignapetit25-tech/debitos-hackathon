@@ -87,6 +87,11 @@ CREATE TABLE IF NOT EXISTS shared_audits (
   payer_side TEXT, channel TEXT, note TEXT DEFAULT '',
   created_at TEXT DEFAULT '',
   UNIQUE (origin_rebilling_id, new_case_id));
+CREATE TABLE IF NOT EXISTS audit_conclusions (
+  id TEXT PRIMARY KEY, audit_id TEXT UNIQUE, outcome TEXT,
+  rebill_cents INTEGER, disputed_cents INTEGER, concluded_by TEXT,
+  date TEXT DEFAULT '', note TEXT DEFAULT '',
+  created_at TEXT DEFAULT '');
 """
 
 
@@ -692,8 +697,11 @@ class SyntheticStore(CaseStore):
         con = self._con()
         try:
             rows = con.execute(
-                "SELECT a.* FROM shared_audits a LEFT JOIN rebillings b "
+                "SELECT a.*, c.outcome, c.rebill_cents, c.disputed_cents, "
+                "c.concluded_by, c.date, c.note, c.created_at "
+                "FROM shared_audits a LEFT JOIN rebillings b "
                 "ON a.origin_rebilling_id = b.id "
+                "LEFT JOIN audit_conclusions c ON c.audit_id = a.id "
                 "WHERE b.case_id=? OR a.new_case_id=?", (case_id, case_id)
             ).fetchall()
         finally:
@@ -701,7 +709,41 @@ class SyntheticStore(CaseStore):
         keys = ("id", "origin_rebilling_id", "new_case_id", "new_motive",
                 "requested_by", "company_auditor", "payer_side",
                 "channel", "note", "created_at")
-        return [dict(zip(keys, r)) for r in rows]
+        out = []
+        for r in rows:
+            d = dict(zip(keys, r[:10]))
+            d["conclusion"] = None
+            if r[10] is not None:
+                d["conclusion"] = dict(zip(
+                    ("outcome", "rebill_cents", "disputed_cents",
+                     "concluded_by", "date", "note", "created_at"), r[10:17]))
+            out.append(d)
+        return out
+
+    def save_conclusion(self, c: dict) -> None:
+        con = self._con()
+        try:
+            con.execute("INSERT INTO audit_conclusions VALUES (?,?,?,?,?,?,?,?,?)",
+                        (c["id"], c["audit_id"], c["outcome"],
+                         c.get("rebill_cents"), c["disputed_cents"],
+                         c["concluded_by"], c.get("date", ""),
+                         c.get("note", ""), c.get("created_at", "")))
+            con.commit()
+        finally:
+            con.close()
+
+    def get_conclusion(self, audit_id: str) -> dict | None:
+        con = self._con()
+        try:
+            row = con.execute("SELECT * FROM audit_conclusions WHERE audit_id=?",
+                              (audit_id,)).fetchone()
+        finally:
+            con.close()
+        if not row:
+            return None
+        return dict(zip(("id", "audit_id", "outcome", "rebill_cents",
+                         "disputed_cents", "concluded_by", "date", "note",
+                         "created_at"), row))
 
     def get_proposal(self, pid: str) -> dict | None:
         con = self._con()

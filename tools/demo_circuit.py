@@ -113,10 +113,13 @@ def build(db: str) -> dict:
             LineItem(1, "CONSULTA GENERAL",
                      "Diferencia no reconocida en NC-8810", 2000000, 0),
         ), 2000000, "new", "2026-09-25"))
-    tasks.request_shared_audit(s, rb["id"], "EXP-2502",
-                               "Diferencia no reconocida en NC-8810", DEB,
-                               "auto-test-auditor",
-                               "payer convened staff (fictitious)")
+    au = tasks.request_shared_audit(s, rb["id"], "EXP-2502",
+                                      "Diferencia no reconocida en NC-8810",
+                                      DEB, "auto-test-auditor",
+                                      "payer convened staff (fictitious)")
+    tasks.conclude_shared_audit(s, au["id"], DEB, "rebill", 1200000,
+                                "2026-10-15",
+                                "Fictitious agreed terms for demo.")
     return {"case": CASE,
             "tasks": len(s.list_tasks(CASE)),
             "resolutions": len(s.list_resolutions(CASE)),
@@ -143,7 +146,7 @@ def main(argv=None) -> dict:
           f"rebilling(s), {summary['recognitions']} recognition(s), "
           f"{summary['accepted']} accepted, disputed "
           f"{summary['disputed_cents']}c, cases {summary['cases']}, "
-          f"1 shared audit)")
+          f"1 shared audit, concluded)")
     return summary
 
 

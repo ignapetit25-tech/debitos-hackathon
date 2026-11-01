@@ -30,8 +30,8 @@ returned insufficient answer, debitos verifications, individual
 per-line resolution, linked rebilling invoice (not money),
 partial recognition ($10,000 of $30,000, balance in dispute),
 accepted-debit closure with origin analysis, shared audit
-(disputed $20,000 returns as EXP-2502, by email). Evidence labeled
-fictitious.
+(disputed $20,000 returns as EXP-2502, by email, concluded:
+rebill $12,000). Evidence labeled fictitious.
 [2:55] Closing: idea declared eligible by Adam Blumenfeld (Cerebral
 Valley) on 10/27/2026 for administrative management with fictitious
 data and human approval. Real vs simulated vs pending in

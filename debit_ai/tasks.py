@@ -497,3 +497,67 @@ def request_shared_audit(store: SyntheticStore, origin_rebilling_id: str,
               f"({new_motive[:100]})",
               before="new debit", after=au["id"])
     return au
+
+
+AUDIT_OUTCOMES = ("rebill", "accept")
+
+
+def conclude_shared_audit(store: SyntheticStore, audit_id: str,
+                          concluded_by: str, outcome: str,
+                          rebill_cents: int | None = None, date: str = "",
+                          note: str = "") -> dict:
+    """Record the agreed terms closing a shared audit, on the new case:
+    how much of the pending (disputed) amount will be rebilled, or
+    that it is accepted. Terms only: lines still close through the
+    normal per-line actions (resolution/rebilling or accepted debit).
+    One conclusion per audit; the disputed snapshot is preserved."""
+    au = _find_audit(store, audit_id)
+    if au is None:
+        raise KeyError(f"shared audit not found: {audit_id}")
+    if au["conclusion"] is not None:
+        raise ValueError(f"{audit_id} already concluded")
+    if outcome not in AUDIT_OUTCOMES:
+        raise ValueError(f"unknown audit outcome: {outcome}")
+    concluded_by = _need(concluded_by, "concluded_by")
+    disputed = disputed_balance(store, au["origin_rebilling_id"])
+    if outcome == "rebill":
+        if type(rebill_cents) is not int or rebill_cents <= 0:
+            raise ValueError("rebill outcome needs rebill_cents > 0")
+        if rebill_cents > disputed:
+            raise ValueError(f"rebill {rebill_cents}c exceeds disputed "
+                             f"{disputed}c")
+    else:
+        rebill_cents = None
+    c = {"id": f"AC-{audit_id}", "audit_id": audit_id, "outcome": outcome,
+         "rebill_cents": rebill_cents, "disputed_cents": disputed,
+         "concluded_by": concluded_by, "date": (date or "").strip(),
+         "note": (note or "").strip(), "created_at": _now()}
+    store.save_conclusion(c)
+    rb = store.get_rebilling(au["origin_rebilling_id"])
+    terms = (f"rebill {rebill_cents}c of disputed {disputed}c"
+             if outcome == "rebill"
+             else f"accepted (disputed was {disputed}c)")
+    store.log(rb["case_id"], "audit_conclusion",
+              f"{audit_id} concluded by {concluded_by}: {terms}",
+              before="audit open", after=c["id"])
+    store.log(au["new_case_id"], "audit_conclusion",
+              f"{audit_id} concluded by {concluded_by}: {terms}",
+              before="audit open", after=c["id"])
+    return c
+
+
+def _find_audit(store: SyntheticStore, audit_id: str) -> dict | None:
+    con = store._con()
+    try:
+        row = con.execute("SELECT * FROM shared_audits WHERE id=?",
+                          (audit_id,)).fetchone()
+    finally:
+        con.close()
+    if not row:
+        return None
+    keys = ("id", "origin_rebilling_id", "new_case_id", "new_motive",
+            "requested_by", "company_auditor", "payer_side",
+            "channel", "note", "created_at")
+    d = dict(zip(keys, row))
+    d["conclusion"] = store.get_conclusion(audit_id)
+    return d
