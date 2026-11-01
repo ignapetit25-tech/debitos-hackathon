@@ -123,6 +123,7 @@ first: it sends no messages and changes no external systems.
 ```bash
 ./demo.sh
 # builds the scratch DB if missing, serves it detached, prints the URL.
+# open http://127.0.0.1:8932/portal for the entry page, or
 # open http://127.0.0.1:8932/ and pick EXP-2501: 3 lines, 4 tasks
 # (Billing + Medical Audit, Agreements + Billing on L3), one
 # returned answer, verifications, 2 resolutions, 1 rebilling with

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI debit casefile — hackathon demo</title>
+<style>
+  :root {
+    --bg: #f7f7f8; --card: #ffffff; --ink: #1a1a1a; --muted: #5b6472;
+    --line: #e3e6ea; --navy: #1e3a8a; --navy-dark: #16295f; --ok: #15803d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  a { color: var(--navy); }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--navy); outline-offset: 2px; }
+  header.top { background: var(--navy); color: #fff; }
+  header.top .wrap { display: flex; align-items: center; gap: 1.5rem; padding: 0.9rem 1.25rem; }
+  header.top strong { font-size: 1.05rem; letter-spacing: 0.01em; }
+  header.top nav { margin-left: auto; display: flex; gap: 1rem; font-size: 0.95rem; }
+  header.top a { color: #dbe4ff; text-decoration: none; }
+  header.top a:hover { text-decoration: underline; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 1.25rem; }
+  .banner {
+    background: #fffbeb; border: 1px solid #f5d67b; border-radius: 8px;
+    padding: 0.6rem 0.9rem; margin: 1.25rem 0 0; font-size: 0.92rem;
+  }
+  .hero { padding: 2.5rem 0 1rem; }
+  .hero h1 { font-size: 2.5rem; line-height: 1.12; margin: 0 0 0.75rem; letter-spacing: -0.01em; }
+  .hero p.lede { font-size: 1.12rem; color: #333c48; max-width: 62ch; margin: 0 0 1.25rem; }
+  .cta-row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; background: var(--navy); color: #fff; text-decoration: none;
+    padding: 0.7rem 1.4rem; border-radius: 8px; font-weight: 600; font-size: 1rem;
+  }
+  .btn:hover { background: var(--navy-dark); }
+  .run { margin-top: 1rem; color: var(--muted); font-size: 0.95rem; }
+  code {
+    background: #eef1f5; border: 1px solid var(--line); border-radius: 6px;
+    padding: 0.1rem 0.45rem; font-size: 0.92em;
+  }
+  section.block {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 1.5rem 1.75rem; margin: 1.5rem 0;
+  }
+  section.block h2 { margin: 0 0 0.75rem; font-size: 1.35rem; }
+  ol.steps { margin: 0; padding-left: 1.4rem; }
+  ol.steps li { margin: 0.55rem 0; }
+  ol.steps li strong { display: block; font-size: 1.02rem; }
+  ol.steps li span { color: #333c48; }
+  dl.honest { margin: 0; }
+  dl.honest dt { font-weight: 700; margin-top: 0.9rem; }
+  dl.honest dt:first-child { margin-top: 0; }
+  dl.honest dd { margin: 0.15rem 0 0; color: #333c48; }
+  footer.site { color: var(--muted); font-size: 0.88rem; padding: 1.5rem 0 2.5rem; }
+  footer.site p { margin: 0.25rem 0; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <strong>AI debit casefile</strong>
+    <nav aria-label="Portal">
+      <a href="/">Live demo</a>
+      <a href="#circuit">How it works</a>
+      <a href="#honesty">Evidence</a>
+      <a href="https://github.com/ignapetit25-tech/debitos-hackathon">GitHub</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  <p class="banner" role="note">100% FICTITIOUS DATA — Demo. Nothing here is a real debit.</p>
+  <div class="hero">
+    <h1>Every debit, traced to its backing.</h1>
+    <p class="lede">An AI layer over the clinic's back office: it splits debit
+    files into lines, routes tasks to the right teams, and records answers,
+    resolutions, rebillings and recoveries — with a human deciding every step.</p>
+    <div class="cta-row">
+      <a class="btn" href="/">Open the live demo</a>
+      <a href="#circuit">See the task circuit ↓</a>
+    </div>
+    <p class="run">No account. Runs locally with one command: <code>./demo.sh</code></p>
+  </div>
+
+  <section class="block" id="circuit" aria-labelledby="circuit-h">
+    <h2 id="circuit-h">The task circuit</h2>
+    <ol class="steps">
+      <li><strong>Receive &amp; split</strong><span>Each file becomes lines with literal payer motives and amounts.</span></li>
+      <li><strong>Route tasks</strong><span>Every line gets tasks per sector: Billing, Medical Audit, Agreements.</span></li>
+      <li><strong>Answer with backing</strong><span>Sectors reply with a document or a precise, checkable reference.</span></li>
+      <li><strong>Débitos verifies</strong><span>The backing is accepted, or the task is returned stating what is missing.</span></li>
+      <li><strong>Resolve per line</strong><span>Individual resolution — or accepted debit with origin analysis. No mass close.</span></li>
+      <li><strong>Rebill &amp; track</strong><span>Linked rebilling invoice, partial recognitions, balance in dispute, shared audits by email.</span></li>
+    </ol>
+    <p>Try it: open the demo and pick case <strong>EXP-2501</strong>.</p>
+  </section>
+
+  <section class="block" id="honesty" aria-labelledby="honesty-h">
+    <h2 id="honesty-h">What you can verify</h2>
+    <dl class="honest">
+      <dt>The model does</dt>
+      <dd>Classify motives, propose routing, draft referrals — every finding carries a code-checked citation.</dd>
+      <dt>The model never does</dt>
+      <dd>Clinical judgment, merit or money conclusions, auto-accept, or sending messages anywhere.</dd>
+      <dt>Data</dt>
+      <dd>Fully fictitious fixtures; synthetic provider by default; no real documents, patients, or identifiers.</dd>
+      <dt>Decisions</dt>
+      <dd>Every resolution, acceptance and recovery is recorded by a named human, with date and rationale.</dd>
+    </dl>
+  </section>
+</main>
+<footer class="site">
+  <div class="wrap">
+    <p>MIT © 2026 ignapetit25-tech · <a href="https://github.com/ignapetit25-tech/debitos-hackathon">Demo code on GitHub</a></p>
+    <p>Portal layout adapted from <a href="https://github.com/pedroestevaodev/stunning-ia-lp">stunning-ia-lp</a> by Pedro Estevão (MIT).</p>
+  </div>
+</footer>
+</body>
+</html>

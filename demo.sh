@@ -12,6 +12,7 @@ if [ ! -f "$DB" ]; then
 fi
 if curl -s -m 3 "http://127.0.0.1:$PORT/api/provider" 2>/dev/null | grep -q provider; then
   echo "demo already running: open http://127.0.0.1:$PORT/ in your browser (case EXP-2501)"
+  echo "portal page:          open http://127.0.0.1:$PORT/portal in your browser"
   exit 0
 fi
 setsid -f env IA_PROVIDER=simulated IA_DEMO_DB="$DB" IA_DEMO_PORT="$PORT" \
@@ -19,6 +20,7 @@ setsid -f env IA_PROVIDER=simulated IA_DEMO_DB="$DB" IA_DEMO_PORT="$PORT" \
 sleep 4
 if curl -s -m 5 "http://127.0.0.1:$PORT/api/provider" 2>/dev/null | grep -q provider; then
   echo "demo running: open http://127.0.0.1:$PORT/ in your browser (case EXP-2501)"
+  echo "portal page:    open http://127.0.0.1:$PORT/portal in your browser"
 else
   echo "FAILED to start; see /tmp/debitos-demo.log"; exit 1
 fi
