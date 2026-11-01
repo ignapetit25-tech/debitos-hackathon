@@ -170,6 +170,7 @@ class Handler(BaseHTTPRequestHandler):
                     "recognitions": self.store.list_case_recognitions(cid),
                     "accepted": self.store.list_accepted(cid),
                     "accounting_docs": self.store.list_accounting_docs(cid),
+                    "shared_audits": self.store.list_shared_audits(cid),
                     "alerts": tasks.circuit_alerts(self.store, cid),
                     "rebilling_status": {
                         r["id"]: {
@@ -289,6 +290,15 @@ class Handler(BaseHTTPRequestHandler):
                     body.get("accepted_by", ""), body.get("origin", ""),
                     body.get("corrective", ""))
                 _json(self, 200, {"accepted": acc})
+            elif self.path == "/api/shared-audit":
+                au = tasks.request_shared_audit(
+                    self.store, body["origin_rebilling_id"],
+                    body["new_case_id"], body.get("new_motive", ""),
+                    body.get("requested_by", ""),
+                    body.get("company_auditor", ""),
+                    body.get("payer_side", ""), body.get("channel", "email"),
+                    body.get("note", ""))
+                _json(self, 200, {"shared_audit": au})
             elif self.path == "/api/accounting-doc":
                 doc = tasks.record_accounting_doc(
                     self.store, body["case_id"], body.get("line_no"),

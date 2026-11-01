@@ -100,6 +100,10 @@ payer reasons. "Medical Audit" is a human destination team.
   leaves a visible balance in dispute ("saldo en disputa"), which
   may arrive as a new debit; duplicate references are refused and
   ambiguous pairs await human reconciliation (never auto-merged).
+  Disputed balances returning as new debits open a shared audit
+  (requested by debitos with the company auditor + payer staff,
+  by email), linked to the origin rebilling; how the audit
+  concludes is not defined yet.
   Terminal "accepted debit" closure (owner recognizes the debit
   stands) with origin analysis and corrective action. Accounting
   documents are recorded separately and never substitute the
@@ -122,7 +126,8 @@ IA_PROVIDER=simulated IA_DEMO_DB=/tmp/circuit/demo.db IA_DEMO_PORT=8932 \
 # (Billing + Medical Audit, Agreements + Billing on L3), one
 # returned answer, verifications, 2 resolutions, 1 rebilling with
 # partial recognition ($10,000 of $30,000, $20,000 in dispute),
-# 1 accepted debit. All actors auto-test-*, evidence fictitious.
+# 1 accepted debit, and a shared audit: the $20,000 returns as
+# new debit EXP-2502 (10 cases total). Actors auto-test-*.
 ```
 
 ## Install

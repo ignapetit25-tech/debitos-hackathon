@@ -33,7 +33,8 @@ contracts.py <-- synthetic.py <-- agent.py --> provider.py
 - `tasks.py`: per-line task circuit (answer with backing,
   debitos verify/return, per-line resolution, rebilling,
   recognition events with issuer, dispute balance, accepted-debit
-  closure, accounting docs, reconciliation, alerts).
+  closure, accounting docs, reconciliation, shared audits,
+  alerts).
   `approvals.followup` and `tasks.record_recovery` are legacy,
   kept only for old records and unit tests.
 - Boundaries: rule score (int) and extraction confidence (float)

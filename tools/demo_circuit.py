@@ -12,8 +12,10 @@ tasks, a line with complementary Agreements + Billing tasks, an
 insufficient answer returned by debitos, a corrected answer with
 verifiable backing, per-line resolutions, a linked rebilling
 invoice with a PARTIAL recognition (balance in dispute shown),
-and an accepted-debit closure with origin analysis. All evidence
-is clearly labeled fictitious.
+an accepted-debit closure with origin analysis, and a shared
+audit: the disputed $20,000 returns as new debit EXP-2502 and is
+linked for reevaluation by email. All evidence is clearly
+labeled fictitious.
 
 ALL actors are auto-test-* (sector responders, debitos
 verification, resolution, recovery). This never touches the live
@@ -105,6 +107,16 @@ def build(db: str) -> dict:
                              1000000, "NC-8810 (FICTICIA)",
                              "OS FICTICIA ANDINA", DEB, "2026-09-20",
                              "Fictitious evidence for demo.")
+    # The disputed $20,000 returns as a new debit -> shared audit.
+    s.seed_case(Case(
+        "EXP-2502", "OS FICTICIA ANDINA", "F-2502", (
+            LineItem(1, "CONSULTA GENERAL",
+                     "Diferencia no reconocida en NC-8810", 2000000, 0),
+        ), 2000000, "new", "2026-09-25"))
+    tasks.request_shared_audit(s, rb["id"], "EXP-2502",
+                               "Diferencia no reconocida en NC-8810", DEB,
+                               "auto-test-auditor",
+                               "payer convened staff (fictitious)")
     return {"case": CASE,
             "tasks": len(s.list_tasks(CASE)),
             "resolutions": len(s.list_resolutions(CASE)),
@@ -112,6 +124,7 @@ def build(db: str) -> dict:
             "recognitions": len(s.list_case_recognitions(CASE)),
             "accepted": len(s.list_accepted(CASE)),
             "disputed_cents": tasks.disputed_balance(s, rb["id"]),
+            "cases": len(s.list_cases()),
             "returns": len(tasks.task_returns(s, CASE))}
 
 
@@ -129,7 +142,8 @@ def main(argv=None) -> dict:
           f"{summary['resolutions']} resolutions, {summary['rebillings']} "
           f"rebilling(s), {summary['recognitions']} recognition(s), "
           f"{summary['accepted']} accepted, disputed "
-          f"{summary['disputed_cents']}c)")
+          f"{summary['disputed_cents']}c, cases {summary['cases']}, "
+          f"1 shared audit)")
     return summary
 
 

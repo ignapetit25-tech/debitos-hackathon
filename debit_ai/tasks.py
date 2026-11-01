@@ -447,3 +447,53 @@ def circuit_alerts(store: SyntheticStore, case_id: str) -> list[str]:
             alerts.append(f"{rb['id']}: recognized exceeds rebilled by "
                           f"{over}c: reconcile")
     return alerts
+
+
+def request_shared_audit(store: SyntheticStore, origin_rebilling_id: str,
+                         new_case_id: str, new_motive: str, requested_by: str,
+                         company_auditor: str, payer_side: str,
+                         channel: str = "email", note: str = "") -> dict:
+    """Shared audit for a disputed balance that returned as a new debit.
+
+    Requested by the debitos owner with the payer; company medical
+    auditor + owner take part, the payer convenes its own staff, and
+    the conversation happens by email (the only confirmed channel).
+    Links the origin rebilling (which must hold a disputed balance)
+    with the new case carrying the new motive. How the audit
+    concludes is NOT defined: no conclusion states are implemented.
+    """
+    rb = store.get_rebilling(origin_rebilling_id)
+    if not rb:
+        raise KeyError(f"rebilling not found: {origin_rebilling_id}")
+    _ = store.get_case(new_case_id)
+    if disputed_balance(store, origin_rebilling_id) <= 0:
+        raise ValueError(f"{origin_rebilling_id} holds no disputed balance")
+    new_motive = _need(new_motive, "new motive")
+    requested_by = _need(requested_by, "requested_by")
+    company_auditor = _need(company_auditor, "company auditor")
+    payer_side = _need(payer_side, "payer side")
+    if channel != "email":
+        raise ValueError("only the confirmed channel is supported: email")
+    if any(a["origin_rebilling_id"] == origin_rebilling_id and
+           a["new_case_id"] == new_case_id
+           for a in store.list_shared_audits(new_case_id)):
+        raise ValueError(f"shared audit already links {origin_rebilling_id} "
+                         f"to {new_case_id}")
+    au = {"id": store.new_shared_audit_id(),
+          "origin_rebilling_id": origin_rebilling_id,
+          "new_case_id": new_case_id, "new_motive": new_motive,
+          "requested_by": requested_by, "company_auditor": company_auditor,
+          "payer_side": payer_side, "channel": channel,
+          "note": (note or "").strip(), "created_at": _now()}
+    store.save_shared_audit(au)
+    store.log(rb["case_id"], "shared_audit",
+              f"{au['id']}: dispute on {origin_rebilling_id} followed to "
+              f"{new_case_id} ({new_motive[:100]}); requested by "
+              f"{requested_by} with {company_auditor} + {payer_side[:60]} "
+              f"by email",
+              before="disputed", after=au["id"])
+    store.log(new_case_id, "shared_audit",
+              f"{au['id']}: reevaluation of {origin_rebilling_id} "
+              f"({new_motive[:100]})",
+              before="new debit", after=au["id"])
+    return au

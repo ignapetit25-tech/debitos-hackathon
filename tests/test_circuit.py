@@ -355,3 +355,51 @@ class TestAccountingDocs(unittest.TestCase):
                                         "N", "R")
         with self.assertRaises(ValueError):
             tasks.record_accounting_doc(s, "C1", None, "invoice", "N", "R")
+
+
+class TestSharedAudit(unittest.TestCase):
+    def _disputed(self):
+        s = _store()
+        s.seed_case(Case("C2", "P", "F-2",
+                         (LineItem(1, "PR", "new motive", 20000, 0),), 20000))
+        rb = _rebilled(s)
+        tasks.record_recognition(s, rb["id"], "financier_credit_note",
+                                 10000, "NC-1", "P", DEB, "2026-09-20")
+        return s, rb
+
+    def test_request_links_origin_and_new_case(self):
+        s, rb = self._disputed()
+        au = tasks.request_shared_audit(s, rb["id"], "C2", "rest re-debited",
+                                        DEB, "auto-test-auditor",
+                                        "payer staff")
+        self.assertEqual(au["id"], "SA-1")
+        self.assertEqual(au["channel"], "email")
+        self.assertIn("shared_audit", [h[1] for h in s.history("C1")])
+        self.assertIn("shared_audit", [h[1] for h in s.history("C2")])
+        self.assertEqual(len(s.list_shared_audits("C1")), 1)
+        self.assertEqual(len(s.list_shared_audits("C2")), 1)
+
+    def test_requires_disputed_balance(self):
+        s = _store()
+        s.seed_case(Case("C2", "P", "F-2",
+                         (LineItem(1, "PR", "m", 100, 0),), 100))
+        rb = _rebilled(s)
+        tasks.record_recognition(s, rb["id"], "financier_credit_note",
+                                 30000, "NC-FULL", "P", DEB, "2026-09-20")
+        with self.assertRaisesRegex(ValueError, "no disputed balance"):
+            tasks.request_shared_audit(s, rb["id"], "C2", "m", DEB, "A", "P")
+
+    def test_request_guards(self):
+        s, rb = self._disputed()
+        with self.assertRaises(KeyError):
+            tasks.request_shared_audit(s, "RB-X", "C2", "m", DEB, "A", "P")
+        with self.assertRaises(KeyError):
+            tasks.request_shared_audit(s, rb["id"], "CX", "m", DEB, "A", "P")
+        with self.assertRaisesRegex(ValueError, "email"):
+            tasks.request_shared_audit(s, rb["id"], "C2", "m", DEB, "A",
+                                       "P", channel="phone")
+        with self.assertRaises(ValueError):
+            tasks.request_shared_audit(s, rb["id"], "C2", "  ", DEB, "A", "P")
+        tasks.request_shared_audit(s, rb["id"], "C2", "m", DEB, "A", "P")
+        with self.assertRaisesRegex(ValueError, "already links"):
+            tasks.request_shared_audit(s, rb["id"], "C2", "m2", DEB, "A", "P")

@@ -81,6 +81,12 @@ CREATE TABLE IF NOT EXISTS accounting_docs (
   kind TEXT, number TEXT, amount_cents INTEGER,
   date TEXT DEFAULT '', note TEXT DEFAULT '',
   recorded_by TEXT DEFAULT '', created_at TEXT DEFAULT '');
+CREATE TABLE IF NOT EXISTS shared_audits (
+  id TEXT PRIMARY KEY, origin_rebilling_id TEXT, new_case_id TEXT,
+  new_motive TEXT, requested_by TEXT, company_auditor TEXT,
+  payer_side TEXT, channel TEXT, note TEXT DEFAULT '',
+  created_at TEXT DEFAULT '',
+  UNIQUE (origin_rebilling_id, new_case_id));
 """
 
 
@@ -658,6 +664,43 @@ class SyntheticStore(CaseStore):
         keys = ("id", "case_id", "line_no", "kind", "number",
                 "amount_cents", "date", "note", "recorded_by",
                 "created_at")
+        return [dict(zip(keys, r)) for r in rows]
+
+    def new_shared_audit_id(self) -> str:
+        con = self._con()
+        try:
+            n = con.execute("SELECT COUNT(*) FROM shared_audits").fetchone()[0]
+        finally:
+            con.close()
+        return f"SA-{n + 1}"
+
+    def save_shared_audit(self, au: dict) -> None:
+        con = self._con()
+        try:
+            con.execute("INSERT INTO shared_audits VALUES (?,?,?,?,?,?,?,?,?,?)",
+                        (au["id"], au["origin_rebilling_id"], au["new_case_id"],
+                         au["new_motive"], au["requested_by"],
+                         au["company_auditor"], au["payer_side"],
+                         au["channel"], au.get("note", ""),
+                         au.get("created_at", "")))
+            con.commit()
+        finally:
+            con.close()
+
+    def list_shared_audits(self, case_id: str) -> list[dict]:
+        """Audits touching a case: as dispute origin or as new debit."""
+        con = self._con()
+        try:
+            rows = con.execute(
+                "SELECT a.* FROM shared_audits a LEFT JOIN rebillings b "
+                "ON a.origin_rebilling_id = b.id "
+                "WHERE b.case_id=? OR a.new_case_id=?", (case_id, case_id)
+            ).fetchall()
+        finally:
+            con.close()
+        keys = ("id", "origin_rebilling_id", "new_case_id", "new_motive",
+                "requested_by", "company_auditor", "payer_side",
+                "channel", "note", "created_at")
         return [dict(zip(keys, r)) for r in rows]
 
     def get_proposal(self, pid: str) -> dict | None:

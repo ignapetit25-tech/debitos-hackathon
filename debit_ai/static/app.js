@@ -707,6 +707,45 @@ function renderCircuit(n) {
     circuitPost("/api/accounting-doc", body, "Accounting doc recorded (not an authorization).");
   });
   sg.appendChild(bdoc);
+  sg.appendChild(el("h3", null, "Shared audits (by email)"));
+  const aus = C.shared_audits || [];
+  if (!aus.length) sg.appendChild(el("p", "muted", "No shared audits."));
+  aus.forEach(a => {
+    sg.appendChild(el("p", null, a.id + ": dispute on " + a.origin_rebilling_id +
+      " followed to " + a.new_case_id + " (" + a.new_motive + "); requested by " +
+      a.requested_by + " with " + a.company_auditor + " + " + a.payer_side + " by email"));
+  });
+  if (C.rebillings.length) {
+    const u1 = el("div", "row", null);
+    const us = el("select", null, null);
+    us.id = "sa-rebilling"; us.setAttribute("aria-label", "Origin rebilling");
+    C.rebillings.forEach(r => us.appendChild(el("option", null, r.id)));
+    const uc = el("input", null, null);
+    uc.id = "sa-case"; uc.placeholder = "New debit case id";
+    uc.setAttribute("aria-label", "New case");
+    const um = el("input", null, null);
+    um.id = "sa-motive"; um.placeholder = "New motive (required)";
+    um.setAttribute("aria-label", "New motive");
+    u1.appendChild(us); u1.appendChild(uc); u1.appendChild(um);
+    sg.appendChild(u1);
+    const u2 = el("div", "row", null);
+    const ub = el("input", null, null);
+    ub.id = "sa-by"; ub.placeholder = "Requested by"; ub.setAttribute("aria-label", "Requested by");
+    const ua = el("input", null, null);
+    ua.id = "sa-auditor"; ua.placeholder = "Company auditor"; ua.setAttribute("aria-label", "Auditor");
+    const up = el("input", null, null);
+    up.id = "sa-payer"; up.placeholder = "Payer side"; up.setAttribute("aria-label", "Payer side");
+    u2.appendChild(ub); u2.appendChild(ua); u2.appendChild(up);
+    sg.appendChild(u2);
+    const bu = el("button", "sec", "Request shared audit");
+    bu.id = "b-audit"; bu.disabled = S.busy;
+    bu.addEventListener("click", () => circuitPost("/api/shared-audit", {
+      origin_rebilling_id: $("sa-rebilling").value, new_case_id: $("sa-case").value,
+      new_motive: $("sa-motive").value, requested_by: $("sa-by").value,
+      company_auditor: $("sa-auditor").value, payer_side: $("sa-payer").value,
+      channel: "email"}, "Shared audit requested (by email)."));
+    sg.appendChild(bu);
+  }
   const so = el("div", null, null);
   so.id = "circuit-out";
   so.setAttribute("aria-live", "polite");
@@ -780,7 +819,7 @@ function renderEvidence() {
   const evtLast = S.hist[S.hist.length - 1];
   n.appendChild(el("p", "muted", S.hist.length + " events · last: " +
     evtLast[1] + " " + (evtLast[5] || "")));
-  const ICON = {proposal: "✓", review: "✔", model_call: "◈", gate: "⛔", task: "→", task_verify: "✔", task_return: "↩", resolution: "●", rebilling: "▸", recovery: "◆", recognition: "◆", reconcile: "=", accepted: "■", accounting_doc: "▤"};
+  const ICON = {proposal: "✓", review: "✔", model_call: "◈", gate: "⛔", task: "→", task_verify: "✔", task_return: "↩", resolution: "●", rebilling: "▸", recovery: "◆", recognition: "◆", reconcile: "=", accepted: "■", accounting_doc: "▤", shared_audit: "✉"};
   S.hist.filter(h => ICON[h[1]]).forEach(h => {
     const d = el("p", null, null);
     d.appendChild(el("strong", null, ICON[h[1]] + " " + h[1] + " "));
