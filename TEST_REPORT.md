@@ -40,7 +40,7 @@ fixtures only, history 0 — the honest empty state).
 ## Deterministic metrics (no model)
 
 Run (local environment):
-- Offline suite: 121 tests OK, 2 live skipped (gated by
+- Offline suite: 123 tests OK, 2 live skipped (gated by
   `META_LIVE=1` / `BASETEN_LIVE=1`, off by default).
   Stages 1-4 added: strict money-input vectors (Node, 25/25),
   post-model gate, neutral routing (no merit conclusions),
@@ -56,7 +56,8 @@ Run (local environment):
   amount-derived status) + 9 provider-limit tests
   (input truncation before any call, output token caps passed to
   Meta responses/chat and Baseten chat, coverage transparency in
-  model_call and proposal, stubbed clients, 0 network).
+  model_call and proposal, stubbed clients, 0 network) + 2 portal
+  markers (entry content, MIT attribution, no external assets).
   The legacy reply endpoint/UI (`pending/recovered/accepted/
   partial`) and the generic single-recovery endpoint were REMOVED
   as validated definitions; their library functions stay only
